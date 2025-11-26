@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stimmungs-Tagebuch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Setzt die Schriftart Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .mood-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .mood-icon:hover {
+            transform: scale(1.1);
+        }
+        .selected-mood {
+            transform: scale(1.2) !important;
+            box-shadow: 0 0 0 4px #4f46e5;
+            border-radius: 9999px;
+            padding: 4px;
+        }
+        .period-button {
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .period-button:active {
+            transform: scale(0.98);
+        }
+        .selected-period {
+            background-color: #4f46e5 !important;
+            color: white !important;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
+    <header class="text-center mb-6 pt-4">
+        <h1 class="text-3xl font-extrabold text-indigo-700">Dein Stimmungs-Tagebuch</h1>
+        <p class="text-gray-500 mt-1">Wie geht es dir jetzt?</p>
+    </header>
+
+    <section class="p-6 bg-gray-50 rounded-xl shadow-inner mb-8">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Neuer Eintrag</h2>
+
+        <div class="mb-6">
+            <p class="font-medium mb-2">1. Wähle die Tageszeit:</p>
+            <div id="time-periods" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Morgen">
+                    🌅 Morgen
+                </button>
+                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Mittag">
+                    ☀️ Mittag
+                </button>
+                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Abend">
+                    🌇 Abend
+                </button>
+                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Nacht">
+                    🌙 Nacht
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <p class="font-medium mb-2">2. Wähle deine Stimmung:</p>
+            <div id="mood-selection" class="flex justify-around items-center space-x-2">
+                <div class="mood-icon cursor-pointer" data-mood="sehr_gut" title="Sehr gut">😀</div>
+                <div class="mood-icon cursor-pointer" data-mood="gut" title="Gut">🙂</div>
+                <div class="mood-icon cursor-pointer" data-mood="neutral" title="Neutral">😐</div>
+                <div class="mood-icon cursor-pointer" data-mood="schlecht" title="Schlecht">🙁</div>
+                <div class="mood-icon cursor-pointer" data-mood="sehr_schlecht" title="Sehr schlecht">😞</div>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <label for="note" class="font-medium block mb-2">3. Notizen (optional):</label>
+            <textarea id="note" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" rows="2" placeholder="Was war heute wichtig oder wie fühlst du dich genauer?"></textarea>
+        </div>
+
+        <button id="save-entry" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md disabled:opacity-50" disabled>
+            Eintrag speichern
+        </button>
+
+        <p id="status-message" class="mt-3 text-center text-sm font-medium h-4"></p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Deine Historie</h2>
+        <p id="loading-history" class="text-center text-gray-500 mt-8">Lade Einträge...</p>
+        <div id="history-container">
+            </div>
+        <p id="no-entries" class="text-center text-gray-500 py-10 hidden">Noch keine Einträge vorhanden. Starte jetzt!</p>
+    </section>
+
+</div>
+
+<script>
+    // Ihre Konfigurationsdaten
+    const firebaseConfig = {
+      apiKey: "AIzaSyBhAG2dBj3iIvBLB5YnyAu-fWvX4ULjclM",
+      authDomain: "stimmungv1.firebaseapp.com",
+      projectId: "stimmungv1",
+      storageBucket: "stimmungv1.firebasestorage.app",
+      messagingSenderId: "114142901438",
+      appId: "1:114142901438:web:55ef0d26825727d7259aef"
+    };
+
+    // Definiere die globalen Variablen, die Ihr Haupt-Skript erwartet
+    var __firebase_config = JSON.stringify(firebaseConfig);
+    var __app_id = firebaseConfig.appId;
+    var __initial_auth_token = undefined;
+</script>
+<script type="module">
+    // Firestore und Firebase Auth Module importieren
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    // setDoc wurde für die Schreibfunktion hinzugefügt
+    import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- GLOBALE VARIABLEN & FIREBASE INITIALISIERUNG ---
+    let db;
+    let auth;
+    let userId = null;
+    let isAuthReady = false;
+
+    // Globale Variablen für das Formular
+    let selectedPeriod = null;
+    let selectedMood = null;
+
+    // Status-Elemente
+    const timePeriodsEl = document.getElementById('time-periods');
+    const moodSelectionEl = document.getElementById('mood-selection');
+    const noteEl = document.getElementById('note');
+    const saveButton = document.getElementById('save-entry');
+    const statusMessageEl = document.getElementById('status-message');
+    const historyContainerEl = document.getElementById('history-container');
+    const loadingHistoryEl = document.getElementById('loading-history');
+    const noEntriesEl = document.getElementById('no-entries');
+
+    // Mappings für Anzeige
+    const MOOD_EMOJIS = {
+        'sehr_gut': '😀',
+        'gut': '🙂',
+        'neutral': '😐',
+        'schlecht': '🙁',
+        'sehr_schlecht': '😞'
+    };
+    const MOOD_NAMES = {
+        'sehr_gut': 'Sehr gut',
+        'gut': 'Gut',
+        'neutral': 'Neutral',
+        'schlecht': 'Schlecht',
+        'sehr_schlecht': 'Sehr schlecht'
+    };
+
+    /**
+     * Setzt die Firebase-Authentifizierung und Firestore auf.
+     */
+    async function setupFirebase() {
+        setLogLevel('error'); // Nur Fehlerprotokolle anzeigen
+
+        try {
+            // Firestore Konfiguration aus globaler Variable laden
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            if (!firebaseConfig.apiKey) {
+                console.error("Firebase Config nicht gefunden. Lokale Speicherung nicht möglich.");
+                statusMessageEl.textContent = "Fehler: Firestore-Dienst nicht verfügbar (Konfiguration fehlt)."; 
+                statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+                return;
+            }
+
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            isAuthReady = true;
+
+            // Anmeldevorgang (mit Custom Token oder anonym)
+            if (!auth.currentUser) {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                    console.log("Angemeldet mit Custom Token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Anonym angemeldet.");
+                }
+            }
+
+
+            // Listener für den Authentifizierungsstatus
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    isAuthReady = true;
+                    console.log("Auth-Status bereit. Benutzer-ID:", userId);
+                    // Starte das Laden der Historie, sobald Auth bereit ist
+                    setupHistoryListener();
+                } else {
+                    console.warn("Benutzer nicht angemeldet. Versuche erneute Anmeldung...");
+                    signInAnonymously(auth).catch(e => {
+                        console.error("Anonyme Anmeldung fehlgeschlagen:", e);
+                        statusMessageEl.textContent = "Anmeldung zur Datenbank fehlgeschlagen. (Regeln prüfen!)";
+                        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+                    });
+                }
+            });
+
+        } catch (error) {
+            console.error("Fehler bei der Firebase-Initialisierung oder Anmeldung:", error);
+            statusMessageEl.textContent = "Fehler bei der Einrichtung der Datenbank (Console prüfen).";
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        }
+    }
+
+    /**
+     * Überprüft, ob alle Eingaben gemacht wurden, und aktiviert/deaktiviert den Speichern-Button.
+     */
+    function checkFormValidity() {
+        saveButton.disabled = !(selectedPeriod && selectedMood);
+        saveButton.textContent = saveButton.disabled ? 'Bitte Zeitraum und Stimmung wählen' : 'Eintrag speichern';
+    }
+
+    /**
+     * Setzt die Event Listener für das Formular.
+     */
+    function setupFormListeners() {
+        // Zeiträume
+        timePeriodsEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.period-button');
+            if (btn) {
+                // Alle Buttons zurücksetzen
+                document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+
+                // Aktuellen Button auswählen
+                selectedPeriod = btn.dataset.period;
+                btn.classList.add('selected-period');
+                checkFormValidity();
+            }
+        });
+
+        // Stimmungen
+        moodSelectionEl.addEventListener('click', (e) => {
+            const icon = e.target.closest('.mood-icon');
+            if (icon) {
+                // Alle Icons zurücksetzen
+                document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+
+                // Aktuelles Icon auswählen
+                selectedMood = icon.dataset.mood;
+                icon.classList.add('selected-mood');
+                checkFormValidity();
+            }
+        });
+
+        // Speichern-Button
+        saveButton.addEventListener('click', saveEntry);
+    }
+
+    /**
+     * Speichert den aktuellen Stimmungseintrag in Firestore.
+     */
+    async function saveEntry() {
+        if (!isAuthReady || !userId || !db) {
+            statusMessageEl.textContent = "Datenbank nicht bereit. Bitte warten...";
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+            return;
+        }
+        if (!selectedPeriod || !selectedMood) {
+            statusMessageEl.textContent = "Bitte Zeitraum und Stimmung auswählen!";
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            return;
+        }
+
+        saveButton.disabled = true;
+        statusMessageEl.textContent = 'Speichere...';
+        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
+
+        // Erstelle eine eindeutige ID basierend auf Datum und Zeitraum, um Duplikate zu verhindern
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const docId = `${today}_${selectedPeriod}`;
+
+        // Pfad zur Sammlung des Benutzers
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
+
+        try {
+            // Speichere oder aktualisiere das Dokument (setDoc)
+            await setDoc(doc(db, collectionPath, docId), {
+                date: today,
+                timePeriod: selectedPeriod,
+                mood: selectedMood,
+                note: noteEl.value.trim(),
+                timestamp: serverTimestamp()
+            });
+
+            statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+
+            // Formular zurücksetzen
+            setTimeout(() => {
+                noteEl.value = '';
+                selectedPeriod = null;
+                selectedMood = null;
+                document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+                document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+                checkFormValidity();
+                statusMessageEl.textContent = '';
+            }, 1500);
+
+        } catch (error) {
+            console.error("Fehler beim Speichern des Eintrags:", error);
+            statusMessageEl.textContent = 'Fehler beim Speichern. Prüfe die Konsole. (Regeln?)';
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        } finally {
+            saveButton.disabled = false;
+        }
+    }
+
+    /**
+     * Erstellt das HTML für einen einzelnen Stimmungseintrag.
+     * @param {object} entry Der Stimmungseintrag.
+     * @returns {string} Das generierte HTML.
+     */
+    function createEntryHtml(entry) {
+        const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
+        const moodName = MOOD_NAMES[entry.mood] || 'Unbekannt';
+
+        return `
+            <div class="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-100 last:border-b-0">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
+                    <span class="text-3xl">${moodEmoji}</span>
+                    <div class="text-sm">
+                        <p class="font-semibold text-gray-700">${moodName}</p>
+                        ${entry.note ? `<p class="text-gray-500 italic text-xs">${entry.note}</p>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Ruft die Historie ab und rendert sie in Echtzeit (onSnapshot).
+     */
+    function setupHistoryListener() {
+        if (!isAuthReady || !userId || !db) return; // Warten, bis Auth bereit ist
+
+        // Pfad zur Sammlung
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
+        const q = collection(db, collectionPath);
+
+        // onSnapshot liefert Echtzeit-Updates
+        onSnapshot(q, (snapshot) => {
+            const allEntries = [];
+            snapshot.forEach((doc) => {
+                allEntries.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Sortieren: Neuestes Datum zuerst, dann nach Tageszeit (Morgen, Mittag, Abend, Nacht)
+            const sortedEntries = allEntries.sort((a, b) => {
+                // 1. Sortieren nach Datum (absteigend)
+                if (a.date < b.date) return 1;
+                if (a.date > b.date) return -1;
+
+                // 2. Sortieren nach Tageszeit (feste Reihenfolge)
+                const order = ['Morgen', 'Mittag', 'Abend', 'Nacht'];
+                return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
+            });
+
+            renderHistory(sortedEntries);
+        }, (error) => {
+            console.error("Fehler beim Abrufen der Historie:", error);
+            loadingHistoryEl.textContent = "Fehler beim Laden der Historie.";
+            loadingHistoryEl.classList.remove('hidden');
+        });
+    }
+
+    /**
+     * Rendert die Einträge, gruppiert nach Datum.
+     * @param {Array<object>} entries Die sortierten Stimmungseinträge.
+     */
+    function renderHistory(entries) {
+        loadingHistoryEl.classList.add('hidden');
+        historyContainerEl.innerHTML = '';
+
+        if (entries.length === 0) {
+            noEntriesEl.classList.remove('hidden');
+            return;
+        }
+
+        noEntriesEl.classList.add('hidden');
+
+        // Einträge nach Datum gruppieren
+        const groupedByDate = entries.reduce((acc, entry) => {
+            const dateKey = entry.date; // YYYY-MM-DD
+            if (!acc[dateKey]) {
+                acc[dateKey] = [];
+            }
+            acc[dateKey].push(entry);
+            return acc;
+        }, {});
+
+        // Datums-Keys absteigend sortieren
+        const sortedDates = Object.keys(groupedByDate).sort().reverse();
+
+        sortedDates.forEach(date => {
+            const dateEntries = groupedByDate[date];
+
+            // Datumsgruppe erstellen
+            const dateGroup = document.createElement('div');
+            dateGroup.className = 'mb-6 border border-gray-200 rounded-lg shadow-md overflow-hidden';
+
+            // Datumstitel
+            const dateTitle = document.createElement('h3');
+            dateTitle.className = 'bg-indigo-100 text-indigo-800 font-bold p-3 text-lg border-b border-indigo-200';
+            dateTitle.textContent = formatDate(date);
+            dateGroup.appendChild(dateTitle);
+
+            // Einträge hinzufügen
+            const entriesList = document.createElement('div');
+            dateEntries.forEach(entry => {
+                entriesList.innerHTML += createEntryHtml(entry);
+            });
+            dateGroup.appendChild(entriesList);
+
+            historyContainerEl.appendChild(dateGroup);
+        });
+    }
+
+    /**
+     * Formatiert das Datum von YYYY-MM-DD zu einem lesbaren Format.
+     * @param {string} dateString Das Datum im Format YYYY-MM-DD.
+     * @returns {string} Das formatierte Datum (z.B. 25. November 2025).
+     */
+    function formatDate(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            // Nutze UTC, um Zeitzonenprobleme zu vermeiden
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        } catch (e) {
+            return dateString; // Fallback
+        }
+    }
+
+    // --- START DER ANWENDUNG ---
+    setupFirebase();
+    setupFormListeners();
+
+</script>
+</body>
+</html>
