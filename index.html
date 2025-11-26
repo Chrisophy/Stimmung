@@ -44,8 +44,8 @@
 
 <div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
     <header class="text-center mb-6 pt-4">
-        <h1 class="text-3xl font-extrabold text-indigo-700">Dein Stimmungs-Tagebuch</h1>
-        <p class="text-gray-500 mt-1">Wie geht es dir jetzt?</p>
+        <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs-Tagebuch</h1>
+        <p class="text-gray-500 mt-1">Wie geht es Dir?</p>
     </header>
 
     <section class="p-6 bg-gray-50 rounded-xl shadow-inner mb-8">
@@ -134,13 +134,10 @@
     var __initial_auth_token = undefined;
 </script>
 <script type="module">
-    // HINWEIS: Absolut sicherer Import-Pfad für Chart.js
-    import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js'; 
-    
-    // Firestore und Firebase Auth Module importieren
+    // Nur Firebase-Module importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, onSnapshot, collection, serverTimestamp, setLogLevel, setDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- GLOBALE VARIABLEN & FIREBASE INITIALISIERUNG ---
     let db;
@@ -163,12 +160,8 @@
     const noEntriesEl = document.getElementById('no-entries');
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
-    const chartStatusEl = document.getElementById('chart-status');
     
-    // Globale Variable für das Chart-Objekt
-    let moodChartInstance = null;
-
-    // Mappings für Anzeige
+    // Mappings
     const MOOD_EMOJIS = {
         'sehr_gut': '😀',
         'gut': '🙂',
@@ -176,7 +169,7 @@
         'schlecht': '🙁',
         'sehr_schlecht': '😞'
     };
-    const MOOD_NAMES = {
+    window.MOOD_NAMES = {
         'sehr_gut': 'Sehr gut',
         'gut': 'Gut',
         'neutral': 'Neutral',
@@ -184,8 +177,8 @@
         'sehr_schlecht': 'Sehr schlecht'
     };
     
-    // Numerische Werte für die Stimmung zur Berechnung des Durchschnitts
-    const MOOD_VALUES = {
+    // Numerische Werte für das Diagramm (MUSS GLOBAL SEIN)
+    window.MOOD_VALUES = {
         'sehr_schlecht': 1,
         'schlecht': 2,
         'neutral': 3,
@@ -195,20 +188,16 @@
 
 
     /**
-     * Setzt die Firebase-Authentifizierung und Firestore auf.
+     * Initialisiert Firebase und startet die anonyme Anmeldung.
      */
     async function setupFirebase() {
-        setLogLevel('error'); // Nur Fehlerprotokolle anzeigen
+        setLogLevel('error'); 
 
         try {
-            // Firestore Konfiguration aus globaler Variable laden
             const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+            
             if (!firebaseConfig.apiKey) {
-                console.error("Firebase Config nicht gefunden. Lokale Speicherung nicht möglich.");
-                statusMessageEl.textContent = "Fehler: Firestore-Dienst nicht verfügbar (Konfiguration fehlt)."; 
-                statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+                statusMessageEl.textContent = "Fehler: Firebase-Konfiguration fehlt."; 
                 return;
             }
 
@@ -216,105 +205,34 @@
             db = getFirestore(app);
             auth = getAuth(app);
             
-            isAuthReady = true;
-
-            // Anmeldevorgang (mit Custom Token oder anonym)
             if (!auth.currentUser) {
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                    console.log("Angemeldet mit Custom Token.");
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("Anonym angemeldet.");
-                }
+                await signInAnonymously(auth);
             }
 
-
-            // Listener für den Authentifizierungsstatus
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     userId = user.uid;
                     isAuthReady = true;
-                    console.log("Auth-Status bereit. Benutzer-ID:", userId);
-                    // Starte das Laden der Historie, sobald Auth bereit ist
                     setupHistoryListener();
                 } else {
-                    console.warn("Benutzer nicht angemeldet. Versuche erneute Anmeldung...");
-                    signInAnonymously(auth).catch(e => {
-                        console.error("Anonyme Anmeldung fehlgeschlagen:", e);
-                        statusMessageEl.textContent = "Anmeldung zur Datenbank fehlgeschlagen. (Regeln prüfen!)";
-                        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-                    });
+                    console.warn("Benutzer nicht angemeldet. Anmeldeversuch läuft...");
                 }
             });
 
         } catch (error) {
-            console.error("Fehler bei der Firebase-Initialisierung oder Anmeldung:", error);
-            statusMessageEl.textContent = "Fehler bei der Einrichtung der Datenbank (Console prüfen).";
+            console.error("Kritischer Fehler bei der Firebase-Initialisierung:", error);
+            loadingHistoryEl.textContent = "Fehler beim Laden der Einträge.";
+            statusMessageEl.textContent = "Kritischer Fehler bei DB-Verbindung. Konsole prüfen.";
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
         }
     }
 
     /**
-     * Überprüft, ob alle Eingaben gemacht wurden, und aktiviert/deaktiviert den Speichern-Button.
+     * Aktiviert/Deaktiviert den Speichern-Button.
      */
     function checkFormValidity() {
         saveButton.disabled = !(selectedPeriod && selectedMood);
         saveButton.textContent = saveButton.disabled ? 'Bitte Zeitraum und Stimmung wählen' : 'Eintrag speichern';
-    }
-
-    /**
-     * Löscht alle Firestore-Einträge des aktuellen Benutzers.
-     */
-    async function resetData() {
-        if (!isAuthReady || !userId || !db) {
-            resetStatusEl.textContent = "Datenbank nicht bereit.";
-            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-            return;
-        }
-
-        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Schritt kann nicht rückgängig gemacht werden.")) {
-            return;
-        }
-
-        resetButton.disabled = true;
-        resetStatusEl.textContent = 'Lösche alle Daten... Bitte warten...';
-        resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
-        const q = collection(db, collectionPath);
-
-        try {
-            // 1. Alle Dokumente in der Sammlung abrufen
-            const snapshot = await getDocs(q);
-            
-            if (snapshot.size === 0) {
-                resetStatusEl.textContent = 'Keine Einträge zum Löschen gefunden.';
-                resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-                return;
-            }
-
-            // 2. Alle abgerufenen Dokumente einzeln löschen
-            const deletePromises = [];
-            snapshot.forEach((document) => {
-                deletePromises.push(deleteDoc(doc(db, collectionPath, document.id)));
-            });
-
-            await Promise.all(deletePromises);
-
-            resetStatusEl.textContent = `Erfolgreich ${snapshot.size} Einträge gelöscht!`;
-            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-
-        } catch (error) {
-            console.error("Fehler beim Löschen der Einträge:", error);
-            resetStatusEl.textContent = 'Fehler beim Löschen. Konsole prüfen.';
-            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-        } finally {
-            resetButton.disabled = false;
-            // Status-Nachricht nach kurzer Zeit zurücksetzen
-            setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
-        }
     }
 
 
@@ -322,39 +240,29 @@
      * Setzt die Event Listener für das Formular.
      */
     function setupFormListeners() {
-        // Zeiträume
         timePeriodsEl.addEventListener('click', (e) => {
             const btn = e.target.closest('.period-button');
             if (btn) {
-                // Alle Buttons zurücksetzen
                 document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
-
-                // Aktuellen Button auswählen
                 selectedPeriod = btn.dataset.period;
                 btn.classList.add('selected-period');
                 checkFormValidity();
             }
         });
 
-        // Stimmungen
         moodSelectionEl.addEventListener('click', (e) => {
             const icon = e.target.closest('.mood-icon');
             if (icon) {
-                // Alle Icons zurücksetzen
                 document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
-
-                // Aktuelles Icon auswählen
                 selectedMood = icon.dataset.mood;
                 icon.classList.add('selected-mood');
                 checkFormValidity();
             }
         });
 
-        // Speichern-Button
         saveButton.addEventListener('click', saveEntry);
-        
-        // Reset Button Listener hinzufügen
         resetButton.addEventListener('click', resetData); 
+        checkFormValidity();
     }
 
     /**
@@ -362,13 +270,8 @@
      */
     async function saveEntry() {
         if (!isAuthReady || !userId || !db) {
-            statusMessageEl.textContent = "Datenbank nicht bereit. Bitte warten...";
+            statusMessageEl.textContent = "Datenbank noch nicht bereit. Bitte 1-2 Sekunden warten und erneut versuchen.";
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
-            return;
-        }
-        if (!selectedPeriod || !selectedMood) {
-            statusMessageEl.textContent = "Bitte Zeitraum und Stimmung auswählen!";
-            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
             return;
         }
 
@@ -376,16 +279,12 @@
         statusMessageEl.textContent = 'Speichere...';
         statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
 
-        // Erstelle eine eindeutige ID basierend auf Datum und Zeitraum, um Duplikate zu verhindern
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
         const docId = `${today}_${selectedPeriod}`;
-
-        // Pfad zur Sammlung des Benutzers
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
 
         try {
-            // Speichere oder aktualisiere das Dokument (setDoc)
             await setDoc(doc(db, collectionPath, docId), {
                 date: today,
                 timePeriod: selectedPeriod,
@@ -402,8 +301,7 @@
                 noteEl.value = '';
                 selectedPeriod = null;
                 selectedMood = null;
-                document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
-                document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+                document.querySelectorAll('.period-button, .mood-icon').forEach(el => el.classList.remove('selected-period', 'selected-mood'));
                 checkFormValidity();
                 statusMessageEl.textContent = '';
             }, 1500);
@@ -417,14 +315,90 @@
         }
     }
 
-    /**
-     * Erstellt das HTML für einen einzelnen Stimmungseintrag.
-     * @param {object} entry Der Stimmungseintrag.
-     * @returns {string} Das generierte HTML.
-     */
+
+    function setupHistoryListener() {
+        if (!isAuthReady || !userId || !db) return;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
+        const q = collection(db, collectionPath);
+
+        onSnapshot(q, (snapshot) => {
+            const allEntries = [];
+            snapshot.forEach((doc) => {
+                allEntries.push({ id: doc.id, ...doc.data() });
+            });
+
+            const sortedEntries = allEntries.sort((a, b) => {
+                if (a.date < b.date) return 1;
+                if (a.date > b.date) return -1;
+                const order = ['Morgen', 'Mittag', 'Abend', 'Nacht'];
+                return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
+            });
+
+            renderHistory(sortedEntries);
+        }, (error) => {
+            console.error("Fehler beim Abrufen der Historie:", error);
+            loadingHistoryEl.textContent = "Fehler beim Laden der Historie.";
+            loadingHistoryEl.classList.remove('hidden');
+        });
+    }
+
+    function renderHistory(entries) {
+        loadingHistoryEl.classList.add('hidden');
+        historyContainerEl.innerHTML = '';
+
+        if (entries.length === 0) {
+            noEntriesEl.classList.remove('hidden');
+             // Sende leere Daten an das Chart-Skript, um es zurückzusetzen
+            if (typeof renderMoodChart !== 'undefined') {
+                renderMoodChart([]); 
+            }
+            return;
+        }
+
+        noEntriesEl.classList.add('hidden');
+
+        const groupedByDate = entries.reduce((acc, entry) => {
+            const dateKey = entry.date;
+            if (!acc[dateKey]) {
+                acc[dateKey] = [];
+            }
+            acc[dateKey].push(entry);
+            return acc;
+        }, {});
+
+        const sortedDates = Object.keys(groupedByDate).sort().reverse();
+
+        sortedDates.forEach(date => {
+            const dateEntries = groupedByDate[date];
+            const dateGroup = document.createElement('div');
+            dateGroup.className = 'mb-6 border border-gray-200 rounded-lg shadow-md overflow-hidden';
+
+            const dateTitle = document.createElement('h3');
+            dateTitle.className = 'bg-indigo-100 text-indigo-800 font-bold p-3 text-lg border-b border-indigo-200';
+            dateTitle.textContent = formatDate(date);
+            dateGroup.appendChild(dateTitle);
+
+            const entriesList = document.createElement('div');
+            dateEntries.forEach(entry => {
+                entriesList.innerHTML += createEntryHtml(entry);
+            });
+            dateGroup.appendChild(entriesList);
+
+            historyContainerEl.appendChild(dateGroup);
+        });
+
+        // WICHTIG: Rufe die global definierte Chart-Funktion auf, wenn sie existiert
+        if (typeof renderMoodChart !== 'undefined') {
+            renderMoodChart(entries); 
+        }
+    }
+
+
     function createEntryHtml(entry) {
         const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
-        const moodName = MOOD_NAMES[entry.mood] || 'Unbekannt';
+        const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
 
         return `
             <div class="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-100 last:border-b-0">
@@ -440,19 +414,109 @@
         `;
     }
 
+    async function resetData() {
+        if (!isAuthReady || !userId || !db) {
+            resetStatusEl.textContent = "Datenbank nicht bereit.";
+            return;
+        }
+
+        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten?")) {
+            return;
+        }
+
+        resetButton.disabled = true;
+        resetStatusEl.textContent = 'Lösche alle Daten...';
+        resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
+        const q = collection(db, collectionPath);
+
+        try {
+            const snapshot = await getDocs(q);
+            if (snapshot.size === 0) {
+                resetStatusEl.textContent = 'Keine Einträge zum Löschen gefunden.';
+                resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+                return;
+            }
+
+            const deletePromises = [];
+            snapshot.forEach((document) => {
+                deletePromises.push(deleteDoc(doc(db, collectionPath, document.id)));
+            });
+
+            await Promise.all(deletePromises);
+            resetStatusEl.textContent = `Erfolgreich ${snapshot.size} Einträge gelöscht!`;
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+
+        } catch (error) {
+            console.error("Fehler beim Löschen der Einträge:", error);
+            resetStatusEl.textContent = 'Fehler beim Löschen.';
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        } finally {
+            resetButton.disabled = false;
+            setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
+        }
+    }
+
+
+    function formatDate(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    // Datumsformatierung für Chart (MUSS GLOBAL SEIN)
+    window.formatDateShort = function(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'short', day: 'numeric', month: 'short' 
+            }).replace(/\./g, '').trim(); 
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    // --- START DER ANWENDUNG ---
+    setupFormListeners(); 
+    setupFirebase();
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
+<script>
+    // Dieses Skript greift auf die globalen Variablen (window.MOOD_VALUES, window.formatDateShort etc.) aus dem Modul-Skript zu.
+
+    let moodChartInstance = null;
+    const chartStatusEl = document.getElementById('chart-status');
+
     /**
      * Berechnet den durchschnittlichen Stimmungswert pro Tag und rendert das Liniendiagramm.
      * @param {Array<object>} entries Alle Stimmungseinträge.
      */
     function renderMoodChart(entries) {
+        // Prüfen, ob Chart.js geladen wurde
+        if (typeof Chart === 'undefined') {
+            return;
+        }
+
         if (moodChartInstance) {
-            moodChartInstance.destroy(); // Bestehendes Chart löschen
+            moodChartInstance.destroy(); 
         }
         
         // 1. Daten pro Tag gruppieren und Durchschnitt berechnen
         const dailyMoods = entries.reduce((acc, entry) => {
             const date = entry.date;
-            const value = MOOD_VALUES[entry.mood] || 3; // Standard auf Neutral
+            // Greife auf die globale Variable zu
+            const value = window.MOOD_VALUES[entry.mood] || 3; 
 
             if (!acc[date]) {
                 acc[date] = { sum: 0, count: 0 };
@@ -465,7 +529,7 @@
         // 2. Daten für das Diagramm formatieren
         const sortedDates = Object.keys(dailyMoods).sort();
         const chartData = sortedDates.map(date => ({
-            date: date, // YYYY-MM-DD
+            date: date,
             average: dailyMoods[date].sum / dailyMoods[date].count
         }));
 
@@ -477,8 +541,7 @@
         chartStatusEl.classList.add('hidden');
 
         const ctx = document.getElementById('moodChart').getContext('2d');
-        // Beschriftungen für die X-Achse: Wochentag und Datum verwenden
-        const labels = chartData.map(d => formatDateShort(d.date)); 
+        const labels = chartData.map(d => window.formatDateShort(d.date)); 
         const data = chartData.map(d => d.average);
         
         // 3. Diagramm rendern
@@ -492,7 +555,7 @@
                     borderColor: '#4f46e5', // Indigo-600
                     backgroundColor: 'rgba(79, 70, 229, 0.2)',
                     borderWidth: 2,
-                    tension: 0.3, // Leichte Krümmung
+                    tension: 0.3,
                     pointRadius: 5,
                     pointBackgroundColor: '#4f46e5',
                 }]
@@ -509,7 +572,7 @@
                         ticks: {
                             callback: function(value) {
                                 // Zeigt die Stimmungsnamen anstelle der Zahlen
-                                return Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === value) || value;
+                                return Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === value) || value;
                             }
                         }
                     },
@@ -524,8 +587,8 @@
                             label: function(context) {
                                 const value = context.parsed.y;
                                 // Finde den passenden Stimmungsnamen für den gerundeten Durchschnitt
-                                const mood = Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === Math.round(value));
-                                return `Ø: ${value.toFixed(2)} (${mood ? MOOD_NAMES[mood] : 'Unbekannt'})`;
+                                const mood = Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === Math.round(value));
+                                return `Ø: ${value.toFixed(2)} (${mood ? window.MOOD_NAMES[mood] : 'Unbekannt'})`;
                             }
                         }
                     }
@@ -533,146 +596,6 @@
             }
         });
     }
-
-    /**
-     * Ruft die Historie ab und rendert sie in Echtzeit (onSnapshot).
-     */
-    function setupHistoryListener() {
-        if (!isAuthReady || !userId || !db) return; // Warten, bis Auth bereit ist
-
-        // Pfad zur Sammlung
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
-        const q = collection(db, collectionPath);
-
-        // onSnapshot liefert Echtzeit-Updates
-        onSnapshot(q, (snapshot) => {
-            const allEntries = [];
-            snapshot.forEach((doc) => {
-                allEntries.push({ id: doc.id, ...doc.data() });
-            });
-
-            // Sortieren: Neuestes Datum zuerst, dann nach Tageszeit (Morgen, Mittag, Abend, Nacht)
-            const sortedEntries = allEntries.sort((a, b) => {
-                // 1. Sortieren nach Datum (absteigend)
-                if (a.date < b.date) return 1;
-                if (a.date > b.date) return -1;
-
-                // 2. Sortieren nach Tageszeit (feste Reihenfolge)
-                const order = ['Morgen', 'Mittag', 'Abend', 'Nacht'];
-                return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
-            });
-
-            renderHistory(sortedEntries);
-        }, (error) => {
-            console.error("Fehler beim Abrufen der Historie:", error);
-            loadingHistoryEl.textContent = "Fehler beim Laden der Historie.";
-            loadingHistoryEl.classList.remove('hidden');
-        });
-    }
-
-    /**
-     * Rendert die Einträge, gruppiert nach Datum.
-     * @param {Array<object>} entries Die sortierten Stimmungseinträge.
-     */
-    function renderHistory(entries) {
-        loadingHistoryEl.classList.add('hidden');
-        historyContainerEl.innerHTML = '';
-
-        if (entries.length === 0) {
-            noEntriesEl.classList.remove('hidden');
-            // Diagramm leeren
-            if (moodChartInstance) moodChartInstance.destroy();
-            chartStatusEl.classList.remove('hidden');
-            return;
-        }
-
-        noEntriesEl.classList.add('hidden');
-
-        // Einträge nach Datum gruppieren
-        const groupedByDate = entries.reduce((acc, entry) => {
-            const dateKey = entry.date; // YYYY-MM-DD
-            if (!acc[dateKey]) {
-                acc[dateKey] = [];
-            }
-            acc[dateKey].push(entry);
-            return acc;
-        }, {});
-
-        // Datums-Keys absteigend sortieren
-        const sortedDates = Object.keys(groupedByDate).sort().reverse();
-
-        sortedDates.forEach(date => {
-            const dateEntries = groupedByDate[date];
-
-            // Datumsgruppe erstellen
-            const dateGroup = document.createElement('div');
-            dateGroup.className = 'mb-6 border border-gray-200 rounded-lg shadow-md overflow-hidden';
-
-            // Datumstitel
-            const dateTitle = document.createElement('h3');
-            dateTitle.className = 'bg-indigo-100 text-indigo-800 font-bold p-3 text-lg border-b border-indigo-200';
-            dateTitle.textContent = formatDate(date);
-            dateGroup.appendChild(dateTitle);
-
-            // Einträge hinzufügen
-            const entriesList = document.createElement('div');
-            dateEntries.forEach(entry => {
-                entriesList.innerHTML += createEntryHtml(entry);
-            });
-            dateGroup.appendChild(entriesList);
-
-            historyContainerEl.appendChild(dateGroup);
-        });
-        
-        // Diagramm aktualisieren
-        renderMoodChart(entries); 
-    }
-
-    /**
-     * Formatiert das Datum von YYYY-MM-DD zu einem lesbaren Format.
-     * @param {string} dateString Das Datum im Format YYYY-MM-DD.
-     * @returns {string} Das formatierte Datum (z.B. Dienstag, 25. November 2025).
-     */
-    function formatDate(dateString) {
-        try {
-            const [year, month, day] = dateString.split('-').map(Number);
-            // Nutze UTC, um Zeitzonenprobleme zu vermeiden
-            const date = new Date(Date.UTC(year, month - 1, day)); 
-            return date.toLocaleDateString('de-DE', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-        } catch (e) {
-            return dateString; // Fallback
-        }
-    }
-
-    /**
-     * Formatiert das Datum kurz für die Diagramm-Beschriftung (z.B. Di, 26. Nov).
-     * @param {string} dateString Das Datum im Format YYYY-MM-DD.
-     * @returns {string} Das kurzformatierte Datum.
-     */
-    function formatDateShort(dateString) {
-        try {
-            const [year, month, day] = dateString.split('-').map(Number);
-            const date = new Date(Date.UTC(year, month - 1, day)); 
-            // Datum kurz formatieren (z.B. Di., 26. Nov.) und Punkte entfernen
-            return date.toLocaleDateString('de-DE', { 
-                weekday: 'short', 
-                day: 'numeric', 
-                month: 'short' 
-            }).replace(/\./g, '').trim(); 
-        } catch (e) {
-            return dateString; // Fallback
-        }
-    }
-
-    // --- START DER ANWENDUNG ---
-    setupFirebase();
-    setupFormListeners();
 
 </script>
 </body>
