@@ -91,7 +91,16 @@
 
         <p id="status-message" class="mt-3 text-center text-sm font-medium h-4"></p>
     </section>
-
+    
+    <section class="mt-8 mb-8 p-6 bg-gray-50 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">📈 Stimmungsverlauf (Barometer)</h2>
+        <div class="relative h-64 w-full">
+            <canvas id="moodChart"></canvas>
+            <p id="chart-status" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
+                Nicht genügend Daten für ein Diagramm (min. 2 Tage).
+            </p>
+        </div>
+    </section>
     <section>
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Deine Historie</h2>
         <p id="loading-history" class="text-center text-gray-500 mt-8">Lade Einträge...</p>
@@ -109,7 +118,7 @@
     </section>
 
 </div> <script>
-    // Ihre Konfigurationsdaten
+    // Ihre Konfigurationsdaten (aus Ihrem Bild übernommen)
     const firebaseConfig = {
       apiKey: "AIzaSyBhAG2dBj3iIvBLB5YnyAu-fWvX4ULjclM",
       authDomain: "stimmungv1.firebaseapp.com",
@@ -125,6 +134,9 @@
     var __initial_auth_token = undefined;
 </script>
 <script type="module">
+    // Chart.js Import
+    import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js';
+    
     // Firestore und Firebase Auth Module importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -150,8 +162,12 @@
     const historyContainerEl = document.getElementById('history-container');
     const loadingHistoryEl = document.getElementById('loading-history');
     const noEntriesEl = document.getElementById('no-entries');
-    const resetButton = document.getElementById('reset-data'); // NEU
-    const resetStatusEl = document.getElementById('reset-status'); // NEU
+    const resetButton = document.getElementById('reset-data'); 
+    const resetStatusEl = document.getElementById('reset-status'); 
+    const chartStatusEl = document.getElementById('chart-status'); // NEU
+    
+    // Globale Variable für das Chart-Objekt
+    let moodChartInstance = null; // NEU
 
     // Mappings für Anzeige
     const MOOD_EMOJIS = {
@@ -168,6 +184,16 @@
         'schlecht': 'Schlecht',
         'sehr_schlecht': 'Sehr schlecht'
     };
+    
+    // Numerische Werte für die Stimmung zur Berechnung des Durchschnitts (NEU)
+    const MOOD_VALUES = {
+        'sehr_schlecht': 1,
+        'schlecht': 2,
+        'neutral': 3,
+        'gut': 4,
+        'sehr_gut': 5
+    };
+
 
     /**
      * Setzt die Firebase-Authentifizierung und Firestore auf.
@@ -239,7 +265,7 @@
     }
 
     /**
-     * Löscht alle Firestore-Einträge des aktuellen Benutzers. (NEUE FUNKTION)
+     * Löscht alle Firestore-Einträge des aktuellen Benutzers.
      */
     async function resetData() {
         if (!isAuthReady || !userId || !db) {
@@ -328,7 +354,7 @@
         // Speichern-Button
         saveButton.addEventListener('click', saveEntry);
         
-        // Reset Button Listener hinzufügen (NEU)
+        // Reset Button Listener hinzufügen
         resetButton.addEventListener('click', resetData); 
     }
 
@@ -416,6 +442,101 @@
     }
 
     /**
+     * Berechnet den durchschnittlichen Stimmungswert pro Tag und rendert das Liniendiagramm.
+     * @param {Array<object>} entries Alle Stimmungseinträge.
+     */
+    function renderMoodChart(entries) {
+        if (moodChartInstance) {
+            moodChartInstance.destroy(); // Bestehendes Chart löschen
+        }
+        
+        // 1. Daten pro Tag gruppieren und Durchschnitt berechnen
+        const dailyMoods = entries.reduce((acc, entry) => {
+            const date = entry.date;
+            const value = MOOD_VALUES[entry.mood] || 3; // Standard auf Neutral
+
+            if (!acc[date]) {
+                acc[date] = { sum: 0, count: 0 };
+            }
+            acc[date].sum += value;
+            acc[date].count++;
+            return acc;
+        }, {});
+
+        // 2. Daten für das Diagramm formatieren
+        const sortedDates = Object.keys(dailyMoods).sort();
+        const chartData = sortedDates.map(date => ({
+            date: formatDate(date),
+            average: dailyMoods[date].sum / dailyMoods[date].count
+        }));
+
+        // Zeige Warnung, wenn zu wenige Daten vorhanden sind
+        if (chartData.length < 2) {
+            chartStatusEl.classList.remove('hidden');
+            return;
+        }
+        chartStatusEl.classList.add('hidden');
+
+        const ctx = document.getElementById('moodChart').getContext('2d');
+        // Extrahiere nur Wochentag, Tag.Monat (z.B. "Di, 26. Nov.") für die X-Achse
+        const labels = chartData.map(d => formatDate(d.date.substring(0, d.date.indexOf(','))).substring(0, formatDate(d.date.substring(0, d.date.indexOf(','))).lastIndexOf(','))); 
+        const data = chartData.map(d => d.average);
+        
+        // 3. Diagramm rendern
+        moodChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ø Stimmung (1=Schlecht, 5=Gut)',
+                    data: data,
+                    borderColor: '#4f46e5', // Indigo-600
+                    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                    borderWidth: 2,
+                    tension: 0.3, // Leichte Krümmung
+                    pointRadius: 5,
+                    pointBackgroundColor: '#4f46e5',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 1,
+                        max: 5,
+                        stepSize: 1,
+                        title: { display: true, text: 'Stimmungswert' },
+                        ticks: {
+                            callback: function(value) {
+                                // Zeigt die Stimmungsnamen anstelle der Zahlen
+                                return Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === value) || value;
+                            }
+                        }
+                    },
+                    x: {
+                        // Sorgt dafür, dass die Datenpunkte nicht am Rand beginnen
+                        beginAtZero: false, 
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                // Finde den passenden Stimmungsnamen für den gerundeten Durchschnitt
+                                const mood = Object.keys(MOOD_VALUES).find(key => MOOD_VALUES[key] === Math.round(value));
+                                return `Ø: ${value.toFixed(2)} (${mood ? MOOD_NAMES[mood] : 'Unbekannt'})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
      * Ruft die Historie ab und rendert sie in Echtzeit (onSnapshot).
      */
     function setupHistoryListener() {
@@ -462,6 +583,9 @@
 
         if (entries.length === 0) {
             noEntriesEl.classList.remove('hidden');
+            // NEU: Diagramm leeren
+            if (moodChartInstance) moodChartInstance.destroy();
+            chartStatusEl.classList.remove('hidden');
             return;
         }
 
@@ -502,12 +626,15 @@
 
             historyContainerEl.appendChild(dateGroup);
         });
+        
+        // NEU: Diagramm aktualisieren
+        renderMoodChart(entries); 
     }
 
     /**
      * Formatiert das Datum von YYYY-MM-DD zu einem lesbaren Format.
      * @param {string} dateString Das Datum im Format YYYY-MM-DD.
-     * @returns {string} Das formatierte Datum (z.B. 25. November 2025).
+     * @returns {string} Das formatierte Datum (z.B. Dienstag, 25. November 2025).
      */
     function formatDate(dateString) {
         try {
