@@ -99,10 +99,16 @@
             </div>
         <p id="no-entries" class="text-center text-gray-500 py-10 hidden">Noch keine Einträge vorhanden. Starte jetzt!</p>
     </section>
+    
+    <section class="mt-8 mb-4">
+        <h2 class="text-xl font-semibold mb-3 text-gray-700">Verwaltung</h2>
+        <button id="reset-data" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-150 shadow-md disabled:opacity-50">
+            ❌ Alle Einträge löschen (Neustart)
+        </button>
+        <p id="reset-status" class="mt-3 text-center text-sm font-medium h-4"></p>
+    </section>
 
-</div>
-
-<script>
+</div> <script>
     // Ihre Konfigurationsdaten
     const firebaseConfig = {
       apiKey: "AIzaSyBhAG2dBj3iIvBLB5YnyAu-fWvX4ULjclM",
@@ -122,8 +128,8 @@
     // Firestore und Firebase Auth Module importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    // setDoc wurde für die Schreibfunktion hinzugefügt
-    import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // setDoc, getDocs und deleteDoc für CRUD-Operationen hinzugefügt
+    import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- GLOBALE VARIABLEN & FIREBASE INITIALISIERUNG ---
     let db;
@@ -144,6 +150,8 @@
     const historyContainerEl = document.getElementById('history-container');
     const loadingHistoryEl = document.getElementById('loading-history');
     const noEntriesEl = document.getElementById('no-entries');
+    const resetButton = document.getElementById('reset-data'); // NEU
+    const resetStatusEl = document.getElementById('reset-status'); // NEU
 
     // Mappings für Anzeige
     const MOOD_EMOJIS = {
@@ -231,6 +239,61 @@
     }
 
     /**
+     * Löscht alle Firestore-Einträge des aktuellen Benutzers. (NEUE FUNKTION)
+     */
+    async function resetData() {
+        if (!isAuthReady || !userId || !db) {
+            resetStatusEl.textContent = "Datenbank nicht bereit.";
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            return;
+        }
+
+        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Schritt kann nicht rückgängig gemacht werden.")) {
+            return;
+        }
+
+        resetButton.disabled = true;
+        resetStatusEl.textContent = 'Lösche alle Daten... Bitte warten...';
+        resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
+        const q = collection(db, collectionPath);
+
+        try {
+            // 1. Alle Dokumente in der Sammlung abrufen
+            const snapshot = await getDocs(q);
+            
+            if (snapshot.size === 0) {
+                resetStatusEl.textContent = 'Keine Einträge zum Löschen gefunden.';
+                resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+                return;
+            }
+
+            // 2. Alle abgerufenen Dokumente einzeln löschen
+            const deletePromises = [];
+            snapshot.forEach((document) => {
+                deletePromises.push(deleteDoc(doc(db, collectionPath, document.id)));
+            });
+
+            await Promise.all(deletePromises);
+
+            resetStatusEl.textContent = `Erfolgreich ${snapshot.size} Einträge gelöscht!`;
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+
+        } catch (error) {
+            console.error("Fehler beim Löschen der Einträge:", error);
+            resetStatusEl.textContent = 'Fehler beim Löschen. Konsole prüfen.';
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        } finally {
+            resetButton.disabled = false;
+            // Status-Nachricht nach kurzer Zeit zurücksetzen
+            setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
+        }
+    }
+
+
+    /**
      * Setzt die Event Listener für das Formular.
      */
     function setupFormListeners() {
@@ -264,6 +327,9 @@
 
         // Speichern-Button
         saveButton.addEventListener('click', saveEntry);
+        
+        // Reset Button Listener hinzufügen (NEU)
+        resetButton.addEventListener('click', resetData); 
     }
 
     /**
