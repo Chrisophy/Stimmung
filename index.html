@@ -55,6 +55,9 @@
         <div class="mb-6">
             <p class="font-medium mb-2">1. Wähle die Tageszeit:</p>
             <div id="time-periods" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Nacht">
+                    🌙 Nacht
+                </button>
                 <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Morgen">
                     🌅 Morgen
                 </button>
@@ -64,10 +67,7 @@
                 <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Abend">
                     🌇 Abend
                 </button>
-                <button class="period-button bg-white text-indigo-600 border border-indigo-300 rounded-lg p-3 text-center shadow-sm" data-period="Nacht">
-                    🌙 Nacht
-                </button>
-            </div>
+                </div>
         </div>
 
         <div class="mb-6">
@@ -487,8 +487,12 @@
             const sortedEntries = allEntries.sort((a, b) => {
                 if (a.date < b.date) return 1;
                 if (a.date > b.date) return -1;
-                const order = ['Morgen', 'Mittag', 'Abend', 'Nacht'];
+                
+                // START: SORTIERREIHENFOLGE GEÄNDERT auf NACHT, MORGEN, MITTAG, ABEND
+                const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
                 return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
+                // ENDE: SORTIERREIHENFOLGE GEÄNDERT
+
             });
 
             renderHistory(sortedEntries);
