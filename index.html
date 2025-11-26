@@ -134,13 +134,12 @@
     var __initial_auth_token = undefined;
 </script>
 <script type="module">
-    // Chart.js Import
-    import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js';
+    // HINWEIS: Absolut sicherer Import-Pfad für Chart.js
+    import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js'; 
     
     // Firestore und Firebase Auth Module importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    // setDoc, getDocs und deleteDoc für CRUD-Operationen hinzugefügt
     import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- GLOBALE VARIABLEN & FIREBASE INITIALISIERUNG ---
@@ -164,10 +163,10 @@
     const noEntriesEl = document.getElementById('no-entries');
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
-    const chartStatusEl = document.getElementById('chart-status'); // NEU
+    const chartStatusEl = document.getElementById('chart-status');
     
     // Globale Variable für das Chart-Objekt
-    let moodChartInstance = null; // NEU
+    let moodChartInstance = null;
 
     // Mappings für Anzeige
     const MOOD_EMOJIS = {
@@ -185,7 +184,7 @@
         'sehr_schlecht': 'Sehr schlecht'
     };
     
-    // Numerische Werte für die Stimmung zur Berechnung des Durchschnitts (NEU)
+    // Numerische Werte für die Stimmung zur Berechnung des Durchschnitts
     const MOOD_VALUES = {
         'sehr_schlecht': 1,
         'schlecht': 2,
@@ -466,7 +465,7 @@
         // 2. Daten für das Diagramm formatieren
         const sortedDates = Object.keys(dailyMoods).sort();
         const chartData = sortedDates.map(date => ({
-            date: formatDate(date),
+            date: date, // YYYY-MM-DD
             average: dailyMoods[date].sum / dailyMoods[date].count
         }));
 
@@ -478,8 +477,8 @@
         chartStatusEl.classList.add('hidden');
 
         const ctx = document.getElementById('moodChart').getContext('2d');
-        // Extrahiere nur Wochentag, Tag.Monat (z.B. "Di, 26. Nov.") für die X-Achse
-        const labels = chartData.map(d => formatDate(d.date.substring(0, d.date.indexOf(','))).substring(0, formatDate(d.date.substring(0, d.date.indexOf(','))).lastIndexOf(','))); 
+        // Beschriftungen für die X-Achse: Wochentag und Datum verwenden
+        const labels = chartData.map(d => formatDateShort(d.date)); 
         const data = chartData.map(d => d.average);
         
         // 3. Diagramm rendern
@@ -515,7 +514,6 @@
                         }
                     },
                     x: {
-                        // Sorgt dafür, dass die Datenpunkte nicht am Rand beginnen
                         beginAtZero: false, 
                     }
                 },
@@ -583,7 +581,7 @@
 
         if (entries.length === 0) {
             noEntriesEl.classList.remove('hidden');
-            // NEU: Diagramm leeren
+            // Diagramm leeren
             if (moodChartInstance) moodChartInstance.destroy();
             chartStatusEl.classList.remove('hidden');
             return;
@@ -627,7 +625,7 @@
             historyContainerEl.appendChild(dateGroup);
         });
         
-        // NEU: Diagramm aktualisieren
+        // Diagramm aktualisieren
         renderMoodChart(entries); 
     }
 
@@ -647,6 +645,26 @@
                 month: 'long', 
                 day: 'numeric' 
             });
+        } catch (e) {
+            return dateString; // Fallback
+        }
+    }
+
+    /**
+     * Formatiert das Datum kurz für die Diagramm-Beschriftung (z.B. Di, 26. Nov).
+     * @param {string} dateString Das Datum im Format YYYY-MM-DD.
+     * @returns {string} Das kurzformatierte Datum.
+     */
+    function formatDateShort(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            // Datum kurz formatieren (z.B. Di., 26. Nov.) und Punkte entfernen
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'short', 
+                day: 'numeric', 
+                month: 'short' 
+            }).replace(/\./g, '').trim(); 
         } catch (e) {
             return dateString; // Fallback
         }
