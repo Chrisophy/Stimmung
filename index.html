@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stimmungs-Tagebuch mit Wetter</title>
+    <title>Stimmungs-Tagebuch mit Wetter & Schmerz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Setzt die Schriftart Inter */
@@ -37,6 +37,15 @@
             background-color: #4f46e5 !important;
             color: white !important;
             font-weight: 600;
+        }
+        /* NEU: Styles für Schmerz-Buttons */
+        .pain-button.selected-pain {
+            transform: scale(1.1) !important;
+            box-shadow: 0 0 0 3px #9333ea; /* Lila-Fokus */
+            font-weight: 700;
+            background-color: #9333ea !important; /* Lila-Hintergrund */
+            color: white !important;
+            border-color: #9333ea !important;
         }
     </style>
 </head>
@@ -80,9 +89,23 @@
                 <div class="mood-icon cursor-pointer" data-mood="sehr_schlecht" title="Sehr schlecht">😞</div>
             </div>
         </div>
-
+        
         <div class="mb-6">
-            <label for="note" class="font-medium block mb-2">3. Notizen (optional):</label>
+            <p class="font-medium mb-2">3. Schmerzintensität (1-10):</p>
+            <div id="pain-selection" class="flex flex-wrap justify-center sm:justify-between gap-1">
+                <script>
+                    for(let i = 1; i <= 10; i++) {
+                        document.write(`
+                            <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 1 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
+                                ${i}
+                            </button>
+                        `);
+                    }
+                </script>
+            </div>
+        </div>
+        <div class="mb-6">
+            <label for="note" class="font-medium block mb-2">4. Notizen (optional):</label>
             <textarea id="note" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" rows="2" placeholder="Was war heute wichtig oder wie fühlst du dich genauer?"></textarea>
         </div>
 
@@ -94,16 +117,17 @@
     </section>
     
     <section class="mt-8 mb-8 p-6 bg-gray-50 rounded-xl shadow">
-        <h2 class="text-xl font-semibold mb-4 text-gray-700">📈 Stimmungs- & Wetterverlauf</h2>
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">📈 Stimmungs-, Schmerz- & Wetterverlauf</h2>
         <div class="relative h-64 w-full">
             <canvas id="moodChart"></canvas>
             <p id="chart-status" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
                 Nicht genügend Daten für ein Diagramm (min. 2 Tage).
             </p>
         </div>
-        <div class="mt-4 text-sm text-center">
+        <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
             <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">Stimmung (Links)</p>
-            <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium ml-4">Temperatur (Rechts)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts)</p>
         </div>
     </section>
     <section>
@@ -155,18 +179,19 @@
     // Globale Variablen für das Formular
     let selectedPeriod = null;
     let selectedMood = null;
+    let selectedPain = null; // NEU
 
     // --- WETTER VARIABLEN (Open-Meteo, kostenfrei) ---
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
-    let currentTemperatureData = null; // Speichert die stündliche Temperaturvorhersage
-    let currentWmoCodeData = null; // NEU: Speichert die stündliche WMO Code Vorhersage
+    let currentTemperatureData = null; 
+    let currentWmoCodeData = null; 
     
     // Zeiträume und die zugehörige Stunde für die Wetterzuordnung
     const PERIOD_TIME_MAP = {
-        'Morgen': 9,  // 9 Uhr
-        'Mittag': 13, // 13 Uhr
-        'Abend': 19,  // 19 Uhr
-        'Nacht': 23   // 23 Uhr
+        'Morgen': 9,  
+        'Mittag': 13, 
+        'Abend': 19,  
+        'Nacht': 23   
     };
 
     // NEU: WMO Code Mapping (Die Open-Meteo Codes)
@@ -205,6 +230,7 @@
     // Status-Elemente
     const timePeriodsEl = document.getElementById('time-periods');
     const moodSelectionEl = document.getElementById('mood-selection');
+    const painSelectionEl = document.getElementById('pain-selection'); // NEU
     const noteEl = document.getElementById('note');
     const saveButton = document.getElementById('save-entry');
     const statusMessageEl = document.getElementById('status-message');
@@ -327,11 +353,11 @@
             const hourlyData = data.hourly.time.map((timestamp, index) => ({
                 timestamp: new Date(timestamp).getTime(), 
                 temp: data.hourly.temperature_2m[index],
-                wmoCode: data.hourly.weathercode[index] // NEU
+                wmoCode: data.hourly.weathercode[index] 
             }));
             
             currentTemperatureData = hourlyData;
-            currentWmoCodeData = hourlyData; // Wir verwenden denselben Datensatz
+            currentWmoCodeData = hourlyData; 
             weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
 
         } catch (error) {
@@ -381,8 +407,9 @@
      * Aktiviert/Deaktiviert den Speichern-Button.
      */
     function checkFormValidity() {
-        saveButton.disabled = !(selectedPeriod && selectedMood);
-        saveButton.textContent = saveButton.disabled ? 'Bitte Zeitraum und Stimmung wählen' : 'Eintrag speichern';
+        // Hinzufügen von selectedPain zur Bedingung
+        saveButton.disabled = !(selectedPeriod && selectedMood && selectedPain);
+        saveButton.textContent = saveButton.disabled ? 'Bitte Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
     }
 
 
@@ -410,6 +437,19 @@
             }
         });
 
+        // NEU: Listener für die Schmerzskala
+        painSelectionEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.pain-button');
+            if (btn) {
+                document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
+                // Speichert den Schmerzwert als Zahl
+                selectedPain = parseInt(btn.dataset.pain, 10); 
+                btn.classList.add('selected-pain');
+                checkFormValidity();
+            }
+        });
+        // ENDE NEU
+
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
         checkFormValidity();
@@ -422,6 +462,12 @@
         if (!isAuthReady || !userId || !db) {
             statusMessageEl.textContent = "Datenbank noch nicht bereit. Bitte 1-2 Sekunden warten und erneut versuchen.";
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+            return;
+        }
+
+        if (!selectedPeriod || !selectedMood || selectedPain === null) {
+            statusMessageEl.textContent = "Bitte alle notwendigen Felder (Zeitraum, Stimmung, Schmerz) ausfüllen.";
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
             return;
         }
 
@@ -442,6 +488,7 @@
                 date: today,
                 timePeriod: selectedPeriod,
                 mood: selectedMood,
+                pain: selectedPain, // ⬅️ NEUES FELD: SCHMERZWERT
                 note: noteEl.value.trim(),
                 temperature: weather.temperature, // ⬅️ TEMPERATUR
                 weatherCondition: weather.weatherCondition, // ⬅️ NEUES FELD: WETTERZUSTAND
@@ -456,7 +503,8 @@
                 noteEl.value = '';
                 selectedPeriod = null;
                 selectedMood = null;
-                document.querySelectorAll('.period-button, .mood-icon').forEach(el => el.classList.remove('selected-period', 'selected-mood'));
+                selectedPain = null; // NEU: Schmerz-Reset
+                document.querySelectorAll('.period-button, .mood-icon, .pain-button').forEach(el => el.classList.remove('selected-period', 'selected-mood', 'selected-pain')); // NEU: pain-button Reset
                 checkFormValidity();
                 statusMessageEl.textContent = '';
             }, 1500);
@@ -488,11 +536,9 @@
                 if (a.date < b.date) return 1;
                 if (a.date > b.date) return -1;
                 
-                // START: SORTIERREIHENFOLGE GEÄNDERT auf NACHT, MORGEN, MITTAG, ABEND
+                // Sortierung: NACHT, MORGEN, MITTAG, ABEND
                 const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
                 return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
-                // ENDE: SORTIERREIHENFOLGE GEÄNDERT
-
             });
 
             renderHistory(sortedEntries);
@@ -559,13 +605,20 @@
         const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
         const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
         
-        // NEU: Temperatur- und Wetterzustandsanzeige
-        const temperatureDisplay = entry.temperature !== undefined && entry.temperature !== null 
-                                 ? `<span class="text-gray-600 font-bold ml-2">(${entry.temperature}°C</span>`
-                                 : '';
-        const conditionDisplay = entry.weatherCondition 
-                                 ? `<span class="text-gray-600 font-bold"> · ${entry.weatherCondition})</span>`
-                                 : '';
+        // NEU: Schmerzanzeige
+        const painDisplay = entry.pain !== undefined && entry.pain !== null 
+                             ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
+                             : '';
+
+        // Wetter/Temperatur-Anzeige in einer Zeile
+        let weatherLine = '';
+        if (entry.temperature !== undefined && entry.temperature !== null) {
+            weatherLine += `${entry.temperature}°C`;
+        }
+        if (entry.weatherCondition) {
+             if (weatherLine) weatherLine += ' · ';
+             weatherLine += entry.weatherCondition;
+        }
 
         return `
             <div class="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-100 last:border-b-0">
@@ -573,8 +626,10 @@
                     <span class="text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
                     <span class="text-3xl">${moodEmoji}</span>
                     <div class="text-sm">
-                        <p class="font-semibold text-gray-700">${moodName}${temperatureDisplay}${conditionDisplay}</p>
-                        ${entry.note ? `<p class="text-gray-500 italic text-xs">${entry.note}</p>` : ''}
+                        <p class="font-semibold text-gray-700">${moodName}${painDisplay}</p>
+                        ${entry.note || weatherLine ? 
+                            `<p class="text-gray-500 italic text-xs">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
+                        : ''}
                     </div>
                 </div>
             </div>
@@ -666,7 +721,7 @@
     const chartStatusEl = document.getElementById('chart-status');
 
     /**
-     * Berechnet den durchschnittlichen Stimmungswert und Temperatur pro Tag und rendert das Diagramm.
+     * Berechnet den durchschnittlichen Stimmungswert, Temperatur und SCHMERZ pro Tag und rendert das Diagramm.
      * @param {Array<object>} entries Alle Stimmungseinträge.
      */
     function renderMoodChart(entries) {
@@ -678,7 +733,8 @@
         const dailyData = entries.reduce((acc, entry) => {
             const dateKey = entry.date;
             const moodValue = window.MOOD_VALUES[entry.mood] || 3; 
-            const tempValue = entry.temperature || null; // Temperaturwert
+            const tempValue = entry.temperature || null; 
+            const painValue = entry.pain || null; // NEU: Schmerzwert
             
             if (!acc[dateKey]) {
                 acc[dateKey] = { 
@@ -686,6 +742,8 @@
                     moodCount: 0, 
                     tempSum: 0, 
                     tempCount: 0, 
+                    painSum: 0, // NEU
+                    painCount: 0, // NEU
                 };
             }
             
@@ -696,6 +754,14 @@
                 acc[dateKey].tempSum += tempValue;
                 acc[dateKey].tempCount++;
             }
+            
+            // NEU: Schmerzdaten akkumulieren
+            if (painValue !== null) {
+                acc[dateKey].painSum += painValue;
+                acc[dateKey].painCount++;
+            }
+            // ENDE NEU
+            
             return acc;
         }, {});
 
@@ -707,6 +773,7 @@
                 date: date,
                 averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
                 averageTemp: data.tempCount > 0 ? data.tempSum / data.tempCount : null,
+                averagePain: data.painCount > 0 ? data.painSum / data.painCount : null, // NEU
             };
         });
 
@@ -721,8 +788,9 @@
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
         const moodData = chartData.map(d => d.averageMood);
         const tempData = chartData.map(d => d.averageTemp);
+        const painData = chartData.map(d => d.averagePain); // NEU
         
-        // 3. Diagramm rendern mit ZWEI Datasets und ZWEI Achsen
+        // 3. Diagramm rendern mit DREI Datasets und ZWEI Achsen
         moodChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -741,6 +809,19 @@
                         order: 1,
                     },
                     {
+                        label: 'Ø Schmerz (1-10)', // NEU: Schmerz-Dataset
+                        data: painData,
+                        borderColor: '#9333ea', // Lila-600
+                        backgroundColor: 'rgba(147, 51, 234, 0.3)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#9333ea',
+                        yAxisID: 'pain_temp', // Verknüpft mit der rechten Achse
+                        type: 'line', 
+                        order: 3, 
+                    },
+                    {
                         label: 'Ø Temperatur (°C)',
                         data: tempData,
                         borderColor: '#ef4444', // Red-500
@@ -749,7 +830,7 @@
                         tension: 0.3,
                         pointRadius: 5,
                         pointBackgroundColor: '#ef4444',
-                        yAxisID: 'temperature', // Verknüpft mit der rechten Achse
+                        yAxisID: 'pain_temp', // Verknüpft mit der rechten Achse
                         type: 'line', 
                         order: 2,
                     }
@@ -775,21 +856,30 @@
                             }
                         }
                     },
-                    temperature: {
+                    // NEU: Rechte Achse für Schmerz (1-10) und Temperatur
+                    pain_temp: { 
                         type: 'linear',
-                        position: 'right', // Die zweite Achse auf der rechten Seite
+                        position: 'right', 
+                        min: 0, // Um Schmerz und Temperatur darzustellen, ist der Bereich flexibler
+                        max: 10, // Die Schmerzskala dominiert die Achsengröße, um sie lesbar zu halten
                         grid: {
                             drawOnChartArea: false 
                         },
                         title: {
                             display: true,
-                            text: 'Temperatur (°C)',
+                            text: 'Schmerz (1-10) / Temperatur (°C)',
                         },
                          ticks: {
-                            color: '#ef4444',
-                            // Optional: Fügt ein °C-Symbol hinzu
+                            color: function(context) {
+                                // Versucht, die Ticks zu färben (ist nicht perfekt, da die Achse beides darstellt)
+                                return context.tick.value <= 10 ? '#9333ea' : '#ef4444'; 
+                            },
                             callback: function(value) {
-                                return value + '°C';
+                                // Zeigt bei Werten unter 10 sowohl Schmerz als auch °C an, da beide Graphen denselben Bereich nutzen können
+                                if (value >= 1 && value <= 10) {
+                                     return value + ' / ' + value + '°C'; 
+                                }
+                                return value + '°C'; 
                             }
                         }
                     },
@@ -811,7 +901,9 @@
                                     const value = context.parsed.y;
                                     const mood = Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === Math.round(value));
                                     label += `${value.toFixed(2)} (${mood ? window.MOOD_NAMES[mood] : 'Unbekannt'})`;
-                                } else if (context.dataset.yAxisID === 'temperature') {
+                                } else if (context.dataset.label.includes('Schmerz')) { // Unterscheidung Schmerz
+                                    label += `${context.parsed.y.toFixed(1)}/10`;
+                                } else if (context.dataset.label.includes('Temperatur')) { // Unterscheidung Temperatur
                                     label += `${context.parsed.y.toFixed(1)}°C`;
                                 }
                                 return label;
