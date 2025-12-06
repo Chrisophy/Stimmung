@@ -133,7 +133,7 @@
         <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
             <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">Stimmung (Links: 1-5)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: 0-10)</p>
-            <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: Skaliert auf 0-10)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: -5.0°C bis 25.0°C)</p>
         </div>
     </section>
     <section>
@@ -263,6 +263,7 @@
             db = getFirestore(app);
             auth = getAuth(app);
             
+            // Anonyme Anmeldung durchführen
             if (!auth.currentUser) {
                 await signInAnonymously(auth);
             }
@@ -271,6 +272,7 @@
                 if (user) {
                     userId = user.uid;
                     isAuthReady = true;
+                    // Listener starten, sobald der Benutzer bekannt ist
                     setupHistoryListener();
                     fetchWeather(); 
                 } else {
@@ -473,6 +475,7 @@
         statusMessageEl.textContent = 'Speichere...';
         statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
 
+        // Eindeutige ID aus Datum und Zeitraum
         const docId = `${entryDate}_${selectedPeriod}`; 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
@@ -480,6 +483,7 @@
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
 
         try {
+            // Speichern/Überschreiben des Dokuments
             await setDoc(doc(db, collectionPath, docId), {
                 date: entryDate, 
                 timePeriod: selectedPeriod,
@@ -488,7 +492,7 @@
                 note: noteEl.value.trim(),
                 temperature: weather.temperature, 
                 weatherCondition: weather.weatherCondition, 
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp() // Zeitstempel beim Speichern
             });
 
             statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
@@ -516,6 +520,9 @@
     }
 
 
+    /**
+     * Setzt den Realtime-Listener für die Historie.
+     */
     function setupHistoryListener() {
         if (!isAuthReady || !userId || !db) return;
 
@@ -523,17 +530,18 @@
         const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
         const q = collection(db, collectionPath);
 
-        onSnapshot(q, (snapshot) => {
+        // onSnapshot wird bei jeder Änderung (Speichern/Löschen) aufgerufen
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const allEntries = [];
             snapshot.forEach((doc) => {
                 allEntries.push({ id: doc.id, ...doc.data() });
             });
 
+            // Sortierung: Neuestes Datum zuerst, dann nach Tageszeit (Nacht -> Abend)
             const sortedEntries = allEntries.sort((a, b) => {
                 if (a.date < b.date) return 1;
                 if (a.date > b.date) return -1;
                 
-                // Sortierung: NACHT, MORGEN, MITTAG, ABEND
                 const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
                 return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
             });
@@ -541,11 +549,17 @@
             renderHistory(sortedEntries);
         }, (error) => {
             console.error("Fehler beim Abrufen der Historie:", error);
-            loadingHistoryEl.textContent = "Fehler beim Laden der Historie.";
+            loadingHistoryEl.textContent = "Fehler beim Laden der Historie. (Firebase Regeln prüfen?)";
             loadingHistoryEl.classList.remove('hidden');
         });
+        
+        // Unsubscriben, falls nötig: unsubscribe();
     }
 
+    /**
+     * Rendert die Historie in HTML und übergibt die Daten an das Chart.
+     * @param {Array<object>} entries Alle sortierten Stimmungseinträge.
+     */
     function renderHistory(entries) {
         loadingHistoryEl.classList.add('hidden');
         historyContainerEl.innerHTML = '';
@@ -560,6 +574,7 @@
 
         noEntriesEl.classList.add('hidden');
 
+        // Einträge nach Datum gruppieren
         const groupedByDate = entries.reduce((acc, entry) => {
             const dateKey = entry.date;
             if (!acc[dateKey]) {
@@ -569,10 +584,15 @@
             return acc;
         }, {});
 
+        // Daten des Diagramms rendern
+        if (typeof renderMoodChart !== 'undefined') {
+            renderMoodChart(entries); 
+        }
+
+        // HTML-Elemente für die Historie erstellen
         const sortedDates = Object.keys(groupedByDate).sort().reverse();
 
         sortedDates.forEach(date => {
-            const dateEntries = groupedByDate[date];
             const dateGroup = document.createElement('div');
             dateGroup.className = 'mb-6 border border-gray-200 rounded-lg shadow-md overflow-hidden';
 
@@ -582,7 +602,8 @@
             dateGroup.appendChild(dateTitle);
 
             const entriesList = document.createElement('div');
-            dateEntries.forEach(entry => {
+            // KORREKTUR: Sicherstellen, dass das richtige Array (groupedByDate[date]) verwendet wird
+            groupedByDate[date].forEach(entry => { 
                 entriesList.innerHTML += createEntryHtml(entry);
             });
             dateGroup.appendChild(entriesList);
@@ -590,9 +611,7 @@
             historyContainerEl.appendChild(dateGroup);
         });
 
-        if (typeof renderMoodChart !== 'undefined') {
-            renderMoodChart(entries); 
-        }
+        
     }
 
 
@@ -629,6 +648,9 @@
         `;
     }
 
+    /**
+     * Löscht alle gespeicherten Daten des anonymen Benutzers.
+     */
     async function resetData() {
         if (!isAuthReady || !userId || !db) {
             resetStatusEl.textContent = "Datenbank nicht bereit.";
@@ -717,14 +739,14 @@
 
     // --- TEMPERATUR-NORMALISIERUNGSKONSTANTEN ---
     // Definiert den Temperaturbereich, der auf die Skala 0-10 abgebildet wird.
-    const TEMP_MIN = -10; // -10°C entspricht Wert 0
-    const TEMP_MAX = 35;  // 35°C entspricht Wert 10
-    const TEMP_RANGE = TEMP_MAX - TEMP_MIN; // 45°C
+    const TEMP_MIN = -5;  // -5.0°C entspricht Wert 0
+    const TEMP_MAX = 25;  // 25.0°C entspricht Wert 10
+    const TEMP_RANGE = TEMP_MAX - TEMP_MIN; // 30°C (25 - (-5))
 
     /**
      * Skaliert eine Temperatur von [TEMP_MIN, TEMP_MAX] linear auf [0, 10].
      * @param {number} temp Die tatsächliche Temperatur in °C.
-     * @returns {number} Der normalisierte Wert zwischen 0 und 10.
+     * @returns {number} Der normalisierte Wert zwischen 0, 10.
      */
     function normalizeTemperature(temp) {
         if (temp === null || temp === undefined) return null;
@@ -836,7 +858,7 @@
         const tempDataNormalized = chartData.map(d => d.averageTempNormalized);
         const painData = chartData.map(d => d.averagePain); 
         
-        // 3. Diagramm rendern mit DREI Datasets und ZWEI Achsen
+        // 3. Diagramm rendern mit DREI Datasets und DREI Achsen
         moodChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -863,7 +885,7 @@
                         tension: 0.3,
                         pointRadius: 5,
                         pointBackgroundColor: '#9333ea',
-                        yAxisID: 'pain_temp', 
+                        yAxisID: 'pain', // Achse für Schmerz (und Temperaturlinie)
                         type: 'line', 
                         order: 3, 
                     },
@@ -876,7 +898,7 @@
                         tension: 0.3,
                         pointRadius: 5,
                         pointBackgroundColor: '#ef4444',
-                        yAxisID: 'pain_temp', 
+                        yAxisID: 'pain', // Verwendet dieselbe Achse wie Schmerz
                         type: 'line', 
                         order: 2,
                     }
@@ -901,31 +923,58 @@
                             }
                         }
                     },
-                    pain_temp: { 
+                    pain: { // Achse A: Schmerzskala (Lila Ticks)
                         type: 'linear',
                         position: 'right', 
-                        min: 0, // Feste Skala 0-10
-                        max: 10, // Feste Skala 0-10
+                        id: 'pain',
+                        min: 0, 
+                        max: 10, 
                         stepSize: 1, 
                         grid: {
                             drawOnChartArea: false 
                         },
                         title: {
-                            display: true,
-                            text: 'Schmerz / Temperatur-Referenz', 
+                            display: false, // Achsentitel entfernt
                         },
-                         ticks: {
+                        ticks: {
+                            // Ticks in der Farbe der Schmerzlinie (Lila)
                             color: '#9333ea', 
                             callback: function(value) {
-                                // Der Wert ist der Skalenwert (0-10)
-                                const schmerzValue = value.toFixed(0); 
-                                
+                                // Zeigt NUR die reine Schmerzskala (0-10)
+                                return value.toFixed(0); 
+                            },
+                            // Setze Padding, damit die Beschriftungen der Temp-Referenz rechts daneben Platz haben
+                            padding: 30, 
+                        }
+                    },
+                    temp_ref: { // Achse B: Temperatur-Referenz (Rote Ticks, überlappend)
+                        type: 'linear',
+                        position: 'right', 
+                        id: 'temp_ref',
+                        min: 0, 
+                        max: 10, 
+                        stepSize: 1, 
+                        // Achse direkt über der 'pain'-Achse positionieren
+                        grid: {
+                            drawOnChartArea: false,
+                            borderColor: 'transparent', // Keine zusätzliche Linie
+                            drawTicks: false // Zeichnet keine eigenen Tick-Markierungen
+                        },
+                        title: { 
+                            display: false // Achsentitel entfernt
+                        },
+                        
+                        ticks: {
+                            // Ticks in der Farbe der Temperaturlinie (Rot)
+                            color: '#ef4444', 
+                            callback: function(value) {
                                 // Die tatsächliche Temperatur (denormalisiert)
                                 const tempValue = denormalizeTemperature(value);
-                                
-                                // NEU: Zeige Schmerz (0-10) und die korrespondierende Temperatur als Referenz
-                                return `${schmerzValue} (≈${tempValue.toFixed(1)}°C)`; 
-                            }
+                                // Wir zeigen die Temperatur-Referenz in Klammern an
+                                return `(≈${tempValue.toFixed(1)}°C)`; 
+                            },
+                            // Kein Padding, damit die Beschriftung direkt nach dem Padding der 'pain'-Achse beginnt
+                            padding: 0, 
                         }
                     },
                     x: {
@@ -949,7 +998,6 @@
                                 } else if (context.dataset.label.includes('Schmerz')) { 
                                     label += `${context.parsed.y.toFixed(1)}/10`;
                                 } else if (context.dataset.label.includes('Temperatur')) { 
-                                    // Zeigt den tatsächlichen Temperaturwert im Tooltip
                                     const normalized = context.parsed.y;
                                     const actualTemp = denormalizeTemperature(normalized);
                                     
