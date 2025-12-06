@@ -95,12 +95,13 @@
         </div>
         
         <div class="mb-6">
-            <p class="font-medium mb-2">3. Schmerzintensität (1-10):</p>
+            <p class="font-medium mb-2">3. Schmerzintensität (**0-10**):</p>
             <div id="pain-selection" class="flex flex-wrap justify-center sm:justify-between gap-1">
                 <script>
-                    for(let i = 1; i <= 10; i++) {
+                    // NEU: Startet bei 0
+                    for(let i = 0; i <= 10; i++) { 
                         document.write(`
-                            <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 1 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
+                            <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 0 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
                                 ${i}
                             </button>
                         `);
@@ -132,7 +133,7 @@
         
         <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
             <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">Stimmung (Links: 1-5)</p>
-            <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: 0-10)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: **0-10**)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: -5.0°C bis 25.0°C)</p>
         </div>
     </section>
@@ -408,7 +409,8 @@
      */
     function checkFormValidity() {
         const selectedDate = entryDateEl.value; 
-        saveButton.disabled = !(selectedDate && selectedPeriod && selectedMood && selectedPain); 
+        // selectedPain muss nicht > 0 sein, sondern nur gesetzt sein (d.h. != null)
+        saveButton.disabled = !(selectedDate && selectedPeriod && selectedMood && selectedPain !== null); 
         saveButton.textContent = saveButton.disabled ? 'Bitte Datum, Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
     }
 
@@ -443,6 +445,7 @@
             const btn = e.target.closest('.pain-button');
             if (btn) {
                 document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
+                // WICHTIG: parseInt(..., 10) stellt sicher, dass '0' korrekt als Zahl 0 gelesen wird
                 selectedPain = parseInt(btn.dataset.pain, 10); 
                 btn.classList.add('selected-pain');
                 checkFormValidity();
@@ -602,7 +605,7 @@
             dateGroup.appendChild(dateTitle);
 
             const entriesList = document.createElement('div');
-            // KORREKTUR: Sicherstellen, dass das richtige Array (groupedByDate[date]) verwendet wird
+            // Sicherstellen, dass das richtige Array (groupedByDate[date]) verwendet wird
             groupedByDate[date].forEach(entry => { 
                 entriesList.innerHTML += createEntryHtml(entry);
             });
@@ -786,7 +789,7 @@
             const dateKey = entry.date;
             const moodValue = window.MOOD_VALUES[entry.mood] || 3; 
             const tempValue = entry.temperature || null; 
-            const painValue = entry.pain || null; 
+            const painValue = entry.pain; // Wert kann 0 sein
             
             if (!acc[dateKey]) {
                 acc[dateKey] = { 
@@ -805,7 +808,8 @@
                 acc[dateKey].tempCount++;
             }
             
-            if (painValue !== null) {
+            // Schmerz ist nur dann gültig, wenn es nicht null oder undefined ist (auch 0 ist gültig)
+            if (painValue !== undefined && painValue !== null) {
                 acc[dateKey].painSum += painValue;
                 acc[dateKey].painCount++;
             }
@@ -824,7 +828,7 @@
             return {
                 date: date,
                 averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
-                // NEU: Normalisierter Temperaturwert für die Grafik
+                // Normalisierter Temperaturwert für die Grafik
                 averageTempNormalized: normalizeTemperature(averageTempOriginal),
                 averagePain: data.painCount > 0 ? data.painSum / data.painCount : null, 
                 averageTempOriginal: averageTempOriginal // Originalwert für Tooltip behalten
@@ -854,7 +858,7 @@
         const ctx = moodChartEl.getContext('2d');
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
         const moodData = chartData.map(d => d.averageMood);
-        // NEU: Verwende normalisierte Temperaturdaten
+        // Verwende normalisierte Temperaturdaten
         const tempDataNormalized = chartData.map(d => d.averageTempNormalized);
         const painData = chartData.map(d => d.averagePain); 
         
@@ -891,7 +895,7 @@
                     },
                     {
                         label: 'Ø Temperatur (Skaliert)', // Angepasstes Label
-                        data: tempDataNormalized, // NEU: Normalisierte Daten
+                        data: tempDataNormalized, // Normalisierte Daten
                         borderColor: '#ef4444', // Red-500
                         backgroundColor: 'rgba(239, 68, 68, 0.4)',
                         borderWidth: 2,
@@ -927,7 +931,7 @@
                         type: 'linear',
                         position: 'right', 
                         id: 'pain',
-                        min: 0, 
+                        min: 0, // WICHTIG: Min ist jetzt 0
                         max: 10, 
                         stepSize: 1, 
                         grid: {
