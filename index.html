@@ -191,11 +191,12 @@
     let currentWmoCodeData = null; 
     
     // Zeiträume und die zugehörige Stunde für die Wetterzuordnung
+    // 💡 KORREKTUR 1: Nacht auf 3 Uhr morgens gesetzt (kälteste Zeit)
     const PERIOD_TIME_MAP = {
         'Morgen': 9,  
         'Mittag': 13, 
         'Abend': 19,  
-        'Nacht': 23   
+        'Nacht': 3    
     };
 
     // NEU: WMO Code Mapping (Die Open-Meteo Codes)
@@ -376,7 +377,6 @@
 
     /**
      * Ermittelt die Temperatur und den Wetterzustand für den ausgewählten Zeitraum.
-     * NEU: Berücksichtigt das gewählte Datum, liefert aber nur Wetterdaten für HEUTE.
      */
     function getWeatherDataForPeriod(period, selectedDateStr) { // ✨ selectedDateStr als Parameter
         
@@ -395,16 +395,27 @@
         const targetHour = PERIOD_TIME_MAP[period];
         if (!targetHour) return { temperature: null, weatherCondition: null };
 
-        // Verwende das aktuelle Datum
+        // 💡 KORRIGIERTE LOGIK: Berechne den Ziel-Zeitstempel
         const now = new Date(); 
         const targetTimeToday = new Date(now);
         targetTimeToday.setHours(targetHour, 0, 0, 0); 
+        
+        // 🚨 KORREKTUR 2: Logik für die Nacht (3 Uhr)
+        // Wenn die Zielstunde (3 Uhr) bereits in der Vergangenheit des aktuellen Tages liegt
+        // und es ist 'Nacht', gehe zum 3 Uhr des Vortages.
+        if (period === 'Nacht' && targetHour < now.getHours()) { 
+             targetTimeToday.setDate(targetTimeToday.getDate() - 1);
+        }
+        
         const targetTimestampMs = targetTimeToday.getTime(); 
         
         let closestEntry = null;
         let minDiff = Infinity;
         
         currentTemperatureData.forEach(entry => {
+            // Der Datensatz enthält die stündliche Vorhersage, 
+            // die in der Regel auch die Stunden des Vortags abdecken muss, 
+            // damit die 'Nacht'-Korrektur funktioniert.
             const diff = Math.abs(entry.timestamp - targetTimestampMs); 
             if (diff < minDiff) {
                 minDiff = diff;
