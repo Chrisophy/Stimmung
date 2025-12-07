@@ -155,6 +155,8 @@
 
 </div> 
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
+
 <script>
     // --- LOKALE SPEICHERKONSTANTE ---
     const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
@@ -675,17 +677,10 @@
         }
     }
 
-    // --- START DER ANWENDUNG ---
-    setupFormListeners(); 
-    setupApp(); // Startet die App, lädt Historie und Wetter
-</script>
-
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
-<script>
-    // Dieses Skript ist unverändert und greift nun auf die globalen Variablen und 
-    // die Funktion renderHistory zu, die ihre Daten aus localStorage bezieht.
-
+    // ******************************************************
+    // AB HIER: KORRIGIERTE CHART.JS LOGIK (Verschoben)
+    // ******************************************************
+    
     let moodChartInstance = null;
     const chartStatusEl = document.getElementById('chart-status');
     const moodChartEl = document.getElementById('moodChart'); // Das Canvas-Element
@@ -723,7 +718,6 @@
         // Denormalisierungsformel: (Normalisierter Wert / 10 * Range) + Min
         return (normalizedValue / 10 * TEMP_RANGE) + TEMP_MIN;
     }
-    // ----------------------------------------------------
 
 
     /**
@@ -731,7 +725,11 @@
      * @param {Array<object>} entries Alle Stimmungseinträge.
      */
     function renderMoodChart(entries) {
-        if (typeof Chart === 'undefined') { return; }
+        // Prüfen, ob Chart.js global verfügbar ist, da es in einem separaten <script> geladen wird
+        if (typeof Chart === 'undefined') { 
+            console.error("Chart.js ist nicht geladen.");
+            return; 
+        }
 
         if (moodChartInstance) { moodChartInstance.destroy(); }
         
@@ -970,6 +968,14 @@
         chartContainerEl.scrollLeft = chartContainerEl.scrollWidth;
     }
 
+    // ******************************************************
+    // ENDE DER KORRIGIERTEN CHART.JS LOGIK
+    // ******************************************************
+
+
+    // --- START DER ANWENDUNG ---
+    setupFormListeners(); 
+    setupApp(); // Startet die App, lädt Historie und Wetter
 </script>
 </body>
 </html>
