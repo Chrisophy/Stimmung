@@ -1,0 +1,27 @@
+# Changelog – Stimmungs-Tagebuch mit Wetter & Schmerz
+
+
+## [v1.0.2] - 2025-12-06
+
+### 🔧 Geändert
+* **Schmerzskala:** Die Erfassung der Schmerzintensität wurde auf die Skala **0-10** erweitert, wobei **0** nun explizit "Keine Schmerzen" repräsentiert.
+* **Diagrammanzeige:** Der Chart-Container ist jetzt **horizontal scrollbar**, um eine bessere Übersicht über längere Zeiträume zu gewährleisten.
+* **Wetter-Zuordnung:** Der Referenzzeitpunkt für die Abfrage der Nachttemperatur wurde von 23:00 Uhr auf **03:00 Uhr** optimiert.
+* **UI/Text:** Kleinere Textanpassungen und Verbesserungen der Benutzeroberfläche (UX) zur Steigerung der Klarheit.
+
+## [v1.0.1] - 2025-11-28
+### ✨ Neu
+* **Wetter-Daten:** Implementierung der Abfrage und Speicherung von **Temperatur** und **Wetterzustand** zum Zeitpunkt des Eintrags via Open-Meteo API (nach Geo-Lokalisierung).
+* **Schmerz-Tracking:** Hinzufügen eines neuen Feldes zur detaillierten Erfassung der **Schmerzintensität** (0-10).
+* **Datumsauswahl:** Hinzufügen eines Datumsfeldes, das es erlaubt, Einträge auch für vergangene Tage vorzunehmen.
+* **Temperatur-Skalierung:** Das Diagramm zeigt nun die Temperatur-Linie an, skaliert auf die Achse 0-10, mit einer Referenzachse der tatsächlichen Grad Celsius ($T$: -5°C bis 25°C).
+
+---
+
+## [v1.0.0] - 2025-11-26
+
+### ✨ Neu
+* **Projektstart:** Erste Veröffentlichung des persönlichen Stimmungs-Tagebuchs.
+* **Kernfunktion:** Erfassung der Stimmung (1-5) und Notizen, gruppiert nach den Tageszeiten (Nacht, Morgen, Mittag, Abend).
+* **Datenpersistenz:** Anbindung an **Firebase/Firestore** zur Speicherung der Daten mit anonymer Benutzerauthentifizierung.
+* **Visualisierung:** Erstellung eines Liniendiagramms zur Darstellung des historischen Stimmungsverlaufs.
