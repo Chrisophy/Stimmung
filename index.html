@@ -54,7 +54,8 @@
 <div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
     <header class="text-center mb-6 pt-4">
         <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs-Tagebuch</h1>
-        <p class="text-gray-500 mt-1">Wie geht es Dir? (100% lokal)</p>
+        <p class="text-gray-500 mt-1">Wie geht es Dir?</p>
+        
         <p id="weather-status" class="text-center text-sm text-gray-400 mt-2">Lade Standort...</p> 
     </header>
 
@@ -224,6 +225,7 @@
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
     const weatherStatusEl = document.getElementById('weather-status'); 
+    // const dailyWisdomEl = document.getElementById('daily-wisdom'); // ENTFERNT: Spruch-Element
 
     // NEUE IMPORT/EXPORT ELEMENTE
     const jsonFileInput = document.getElementById('json-file-input');
@@ -272,14 +274,16 @@
         }
     }
 
+    // Funktion getDailyQuote() ENTFERNT
 
     /**
      * Startet das Laden der Historie und den initialen Wetterabruf.
      */
     function setupApp() {
         loadHistoryAndStartListening();
-        // Initialer Wetterabruf für den heutigen Tag
         fetchWeather(entryDateEl.value); 
+        
+        // AUFRUF von dailyWisdomEl ENTFERNT
     }
     
     /**
@@ -299,6 +303,7 @@
 
             // Wenn das Zieldatum innerhalb des geladenen Fensters liegt, brechen wir ab.
             if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
+                // Wir setzen den Status immer, da der Nutzer das Datum manuell geändert haben könnte.
                 weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
                 return;
             }
@@ -365,7 +370,27 @@
             
             currentTemperatureData = hourlyData; // Wetterdaten speichern
             lastFetchedDate = startDateStr; // Das Startdatum des geladenen Fensters speichern
-            weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
+            
+            // Aktuelle Temperatur ermitteln und anzeigen (nächstliegender Messpunkt)
+            let currentTempDisplay = null;
+            let minDiff = Infinity;
+            const nowMs = new Date().getTime();
+
+            hourlyData.forEach(entry => {
+                const diff = Math.abs(entry.timestamp - nowMs);
+                // Nur zukünftige oder sehr nahe vergangene Daten
+                if (diff < minDiff && entry.timestamp > (nowMs - 3 * 60 * 60 * 1000)) { 
+                    minDiff = diff;
+                    currentTempDisplay = entry.temp;
+                }
+            });
+
+            let weatherMessage = '✅ Wetterdaten bereit.';
+            if (currentTempDisplay !== null) {
+                weatherMessage += ` Aktuelle Temperatur: ${currentTempDisplay.toFixed(1)}°C`;
+            }
+
+            weatherStatusEl.textContent = weatherMessage;
 
         } catch (error) {
             console.error("Fehler beim Abrufen der Wetterdaten:", error);
@@ -428,7 +453,7 @@
      */
     function setupFormListeners() {
         
-        // NEU: Ruft Wetterdaten ab, wenn sich das Datum ändert
+        // Ruft Wetterdaten ab, wenn sich das Datum ändert
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
             fetchWeather(entryDateEl.value); 
@@ -442,7 +467,7 @@
                 btn.classList.add('selected-period');
                 checkFormValidity();
                 
-                // NEU: Wenn Zeitraum gewählt, prüfen wir, ob die Daten aktuell sind
+                // Wenn Zeitraum gewählt, prüfen wir, ob die Daten aktuell sind
                 if (selectedPeriod && entryDateEl.value) {
                     fetchWeather(entryDateEl.value); 
                 }
@@ -539,6 +564,9 @@
                 document.querySelectorAll('.period-button, .mood-icon, .pain-button').forEach(el => el.classList.remove('selected-period', 'selected-mood', 'selected-pain')); 
                 checkFormValidity();
                 statusMessageEl.textContent = '';
+                
+                // Wetterstatus zurücksetzen und aktualisieren
+                fetchWeather(entryDateEl.value); 
             }, 1500);
 
         } catch (error) {
