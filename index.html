@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stimmungs-Tagebuch mit Wetter & Schmerz</title>
+    <title>Stimmungs-Tagebuch mit Wetter & Schmerz (Lokal)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Setzt die Schriftart Inter */
@@ -54,7 +54,7 @@
 <div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
     <header class="text-center mb-6 pt-4">
         <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs-Tagebuch</h1>
-        <p class="text-gray-500 mt-1">Wie geht es Dir?</p>
+        <p class="text-gray-500 mt-1">Wie geht es Dir? (100% lokal)</p>
         <p id="weather-status" class="text-center text-sm text-gray-400 mt-2">Lade Standort...</p> 
     </header>
 
@@ -147,7 +147,22 @@
     
     <section class="mt-8 mb-4">
         <h2 class="text-xl font-semibold mb-3 text-gray-700">Verwaltung</h2>
-        <button id="reset-data" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-150 shadow-md disabled:opacity-50">
+        
+        <div class="p-4 border border-blue-200 rounded-lg bg-blue-50 mb-4">
+            <h3 class="font-bold text-blue-800 mb-2">Daten-Import (Wiederherstellung)</h3>
+            <label for="json-file-input" class="block font-medium mb-2 text-sm text-blue-700">1. JSON-Datei wählen (Backup- oder Firebase-Export):</label>
+            <input type="file" id="json-file-input" accept=".json" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
+            <button id="import-data" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-150 shadow-md mt-3 disabled:opacity-50" disabled>
+                2. Daten aus Datei importieren und zusammenführen
+            </button>
+            <p id="import-status" class="mt-3 text-center text-sm font-medium h-4"></p>
+        </div>
+        
+        <button id="export-data" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-150 shadow-md mt-3">
+            💾 Alle Daten als JSON exportieren (Backup erstellen)
+        </button>
+
+        <button id="reset-data" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-150 shadow-md disabled:opacity-50 mt-3">
             ❌ Alle Einträge löschen (Neustart)
         </button>
         <p id="reset-status" class="mt-3 text-center text-sm font-medium h-4"></p>
@@ -171,13 +186,14 @@
     let currentTemperatureData = null; 
     let userLatitude = null; 
     let userLongitude = null; 
-    
+    let lastFetchedDate = null; // Speichert das Startdatum des geladenen 14-Tage-Fensters
+
     // Zeiträume und die zugehörige Stunde für die Wetterzuordnung
     const PERIOD_TIME_MAP = {
+        'Nacht': 3,
         'Morgen': 9,  
         'Mittag': 13, 
-        'Abend': 19,  
-        'Nacht': 3    
+        'Abend': 19,    
     };
 
     // WMO Code Mapping 
@@ -208,7 +224,14 @@
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
     const weatherStatusEl = document.getElementById('weather-status'); 
+
+    // NEUE IMPORT/EXPORT ELEMENTE
+    const jsonFileInput = document.getElementById('json-file-input');
+    const importButton = document.getElementById('import-data');
+    const importStatusEl = document.getElementById('import-status');
+    const exportButton = document.getElementById('export-data');
     
+    // Setze das Standarddatum (HEUTE)
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
 
     // Mappings
@@ -224,7 +247,7 @@
 
 
     /**
-     * NEU: Lädt alle Einträge aus dem localStorage.
+     * Lädt alle Einträge aus dem localStorage.
      * @returns {Array<object>} Die Liste der Einträge.
      */
     function loadEntriesFromLocalStorage() {
@@ -238,7 +261,7 @@
     }
 
     /**
-     * NEU: Speichert die gesamte Liste von Einträgen im localStorage.
+     * Speichert die gesamte Liste von Einträgen im localStorage.
      * @param {Array<object>} entries Die Liste der Einträge.
      */
     function saveEntriesToLocalStorage(entries) {
@@ -251,24 +274,37 @@
 
 
     /**
-     * Der Firebase-Setup-Schritt wird durch das Laden der Historie ersetzt.
+     * Startet das Laden der Historie und den initialen Wetterabruf.
      */
     function setupApp() {
-        // Starte das Laden der Historie sofort, da keine Firebase-Auth nötig ist
         loadHistoryAndStartListening();
-        // Starte Wetterabruf
-        fetchWeather(); 
+        // Initialer Wetterabruf für den heutigen Tag
+        fetchWeather(entryDateEl.value); 
     }
     
     /**
-     * Ruft den Standort des Benutzers ab und fragt die Wetterdaten ab.
+     * Ruft den Standort des Benutzers ab und fragt die Wetterdaten ab, 
+     * falls das Zieldatum außerhalb des aktuell geladenen 14-Tage-Fensters liegt.
+     * @param {string} targetDateStr Das Zieldatum im Format 'YYYY-MM-DD', für das die Daten benötigt werden.
      */
-    async function fetchWeather() {
-        if (currentTemperatureData && userLatitude && userLongitude) {
-             weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
-             return;
-        }
+    async function fetchWeather(targetDateStr) {
+        if (!targetDateStr) return; 
 
+        // 1. Prüfen, ob die aktuell geladenen Daten das Zieldatum bereits abdecken.
+        if (lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
+            const targetTime = new Date(targetDateStr).getTime();
+            const loadedStartTime = new Date(lastFetchedDate).getTime();
+            const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
+            const loadedEndTime = loadedStartTime + fourteenDaysInMs;
+
+            // Wenn das Zieldatum innerhalb des geladenen Fensters liegt, brechen wir ab.
+            if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
+                weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
+                return;
+            }
+        }
+        
+        // 2. Wetterdaten abrufen, da sie entweder fehlen oder das Datum nicht abdecken
         weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
 
         if (!navigator.geolocation) {
@@ -287,13 +323,14 @@
             userLatitude = position.coords.latitude; 
             userLongitude = position.coords.longitude; 
             
-            weatherStatusEl.textContent = 'Wetterdaten abrufen...';
-            await fetchWeatherData(userLatitude, userLongitude);
+            weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
+            
+            await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
 
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
             if (error.code === error.PERMISSION_DENIED) {
-                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Wetterdaten nicht verfügbar.';
+                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
@@ -301,11 +338,18 @@
     }
 
     /**
-     * Ruft die Wetterdaten (stündliche Vorhersage) von Open-Meteo ab.
+     * Ruft die Wetterdaten (stündliche Vorhersage) von Open-Meteo ab, startend am Zieldatum.
      */
-    async function fetchWeatherData(lat, lon) {
-        // Lade 14 Tage für Sicherheit
-        const url = `${WEATHER_API_BASE_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&timezone=auto&forecast_days=14`; 
+    async function fetchWeatherData(lat, lon, startDateStr) {
+        
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 14); // 14 Tage ab dem Zieldatum
+        
+        const startDateFormatted = startDateStr;
+        const endDateFormatted = endDate.toISOString().split('T')[0];
+        
+        const url = `${WEATHER_API_BASE_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&timezone=auto&start_date=${startDateFormatted}&end_date=${endDateFormatted}`; 
         
         try {
             const response = await fetch(url);
@@ -314,13 +358,13 @@
             const data = await response.json();
             
             const hourlyData = data.hourly.time.map((timestamp, index) => ({
-                // API-Timestamp in Millisekunden umwandeln
                 timestamp: new Date(timestamp).getTime(), 
                 temp: data.hourly.temperature_2m[index],
                 wmoCode: data.hourly.weathercode[index] 
             }));
             
             currentTemperatureData = hourlyData; // Wetterdaten speichern
+            lastFetchedDate = startDateStr; // Das Startdatum des geladenen Fensters speichern
             weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
 
         } catch (error) {
@@ -334,22 +378,17 @@
      */
     function getWeatherDataForPeriod(period, selectedDateStr) { 
         
-        if (!selectedDateStr) return { temperature: null, weatherCondition: null }; 
-
-        if (!currentTemperatureData || currentTemperatureData.length === 0) {
+        if (!selectedDateStr || !currentTemperatureData || currentTemperatureData.length === 0) {
              return { temperature: null, weatherCondition: null }; 
         }
 
         const targetHour = PERIOD_TIME_MAP[period];
         if (!targetHour) return { temperature: null, weatherCondition: null };
 
-        // Erstelle das Zieldatum-Objekt basierend auf dem Formular-Datum und der Zielstunde (lokale Zeit)
         const [year, month, day] = selectedDateStr.split('-').map(Number);
         
-        // TargetTime in der lokalen Zeitzone des Benutzers erstellen (wichtig für den Abgleich)
         let targetTime = new Date(year, month - 1, day, targetHour, 0, 0); 
 
-        // Die Open-Meteo API liefert stündliche Timestamps. Wir finden den nächstgelegenen.
         const targetTimestampMs = targetTime.getTime(); 
         
         let closestEntry = null;
@@ -358,7 +397,6 @@
         currentTemperatureData.forEach(entry => {
             const diff = Math.abs(entry.timestamp - targetTimestampMs); 
             
-            // Limit: Nur Datensätze innerhalb von 12 Stunden der Zielzeit akzeptieren (Sicherheit)
             if (diff < minDiff && diff < (12 * 60 * 60 * 1000)) { 
                 minDiff = diff;
                 closestEntry = entry;
@@ -380,17 +418,21 @@
      */
     function checkFormValidity() {
         const selectedDate = entryDateEl.value; 
-        // selectedPain muss nicht > 0 sein, sondern nur gesetzt sein (d.h. != null)
         saveButton.disabled = !(selectedDate && selectedPeriod && selectedMood && selectedPain !== null); 
         saveButton.textContent = saveButton.disabled ? 'Bitte Datum, Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
     }
 
 
     /**
-     * Setzt die Event Listener für das Formular.
+     * Setzt die Event Listener für das Formular und die Verwaltung.
      */
     function setupFormListeners() {
-        entryDateEl.addEventListener('change', checkFormValidity);
+        
+        // NEU: Ruft Wetterdaten ab, wenn sich das Datum ändert
+        entryDateEl.addEventListener('change', () => {
+            checkFormValidity();
+            fetchWeather(entryDateEl.value); 
+        });
 
         timePeriodsEl.addEventListener('click', (e) => {
             const btn = e.target.closest('.period-button');
@@ -399,6 +441,11 @@
                 selectedPeriod = btn.dataset.period;
                 btn.classList.add('selected-period');
                 checkFormValidity();
+                
+                // NEU: Wenn Zeitraum gewählt, prüfen wir, ob die Daten aktuell sind
+                if (selectedPeriod && entryDateEl.value) {
+                    fetchWeather(entryDateEl.value); 
+                }
             }
         });
 
@@ -416,7 +463,6 @@
             const btn = e.target.closest('.pain-button');
             if (btn) {
                 document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
-                // WICHTIG: parseInt(..., 10) stellt sicher, dass '0' korrekt als Zahl 0 gelesen wird
                 selectedPain = parseInt(btn.dataset.pain, 10); 
                 btn.classList.add('selected-pain');
                 checkFormValidity();
@@ -425,11 +471,18 @@
         
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
+        exportButton.addEventListener('click', exportData); 
+        
+        jsonFileInput.addEventListener('change', () => {
+            importButton.disabled = !jsonFileInput.files.length;
+        });
+        importButton.addEventListener('click', importData);
+        
         checkFormValidity();
     }
 
     /**
-     * NEU: Speichert den aktuellen Stimmungseintrag in localStorage.
+     * Speichert den aktuellen Stimmungseintrag in localStorage.
      */
     function saveEntry() {
         const entryDate = entryDateEl.value; 
@@ -443,16 +496,14 @@
         statusMessageEl.textContent = 'Speichere...';
         statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
 
-        // Eindeutige ID aus Datum und Zeitraum
         const docId = `${entryDate}_${selectedPeriod}`; 
         
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
 
-        // Einträge laden
         const allEntries = loadEntriesFromLocalStorage();
         
         const newEntry = {
-            id: docId, // Verwenden Sie die DocId als lokale ID
+            id: docId, 
             date: entryDate, 
             timePeriod: selectedPeriod,
             mood: selectedMood,
@@ -460,15 +511,14 @@
             note: noteEl.value.trim(),
             temperature: weather.temperature, 
             weatherCondition: weather.weatherCondition, 
-            timestamp: new Date().getTime() // Lokaler Zeitstempel
+            timestamp: new Date().getTime() 
         };
 
-        // Bestehenden Eintrag finden und überschreiben oder neuen hinzufügen
         const existingIndex = allEntries.findIndex(e => e.id === docId);
         if (existingIndex > -1) {
-            allEntries[existingIndex] = newEntry; // Überschreiben
+            allEntries[existingIndex] = newEntry; 
         } else {
-            allEntries.push(newEntry); // Hinzufügen
+            allEntries.push(newEntry); 
         }
 
         try {
@@ -477,7 +527,6 @@
             statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
 
-            // Historie neu rendern
             renderSortedHistory(allEntries);
 
             // Formular zurücksetzen
@@ -503,7 +552,7 @@
 
 
     /**
-     * NEU: Lädt die Historie aus localStorage und startet das Rendering.
+     * Lädt die Historie aus localStorage und startet das Rendering.
      */
     function loadHistoryAndStartListening() {
         const allEntries = loadEntriesFromLocalStorage();
@@ -529,7 +578,6 @@
 
     /**
      * Rendert die Historie in HTML und übergibt die Daten an das Chart.
-     * (Unverändert, verwendet jetzt lokal geladene Daten)
      * @param {Array<object>} entries Alle sortierten Stimmungseinträge.
      */
     function renderHistory(entries) {
@@ -552,7 +600,6 @@
             if (!acc[dateKey]) {
                 acc[dateKey] = [];
             }
-            // Hinzufügen des Timestamps für eine eventuelle sekundäre Sortierung
             entry.timestamp = entry.timestamp || new Date(entry.date).getTime(); 
             acc[dateKey].push(entry);
             return acc;
@@ -576,7 +623,6 @@
             dateGroup.appendChild(dateTitle);
 
             const entriesList = document.createElement('div');
-            // Sicherstellen, dass das richtige Array (groupedByDate[date]) verwendet wird
             groupedByDate[date].forEach(entry => { 
                 entriesList.innerHTML += createEntryHtml(entry);
             });
@@ -621,7 +667,7 @@
     }
 
     /**
-     * NEU: Löscht alle gespeicherten Daten aus dem localStorage.
+     * Löscht alle gespeicherten Daten aus dem localStorage.
      */
     function resetData() {
         if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) {
@@ -649,6 +695,106 @@
             resetButton.disabled = false;
             setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
         }
+    }
+    
+    /**
+     * Exportiert alle gespeicherten Daten als JSON-Datei.
+     */
+    function exportData() {
+        const allEntries = loadEntriesFromLocalStorage();
+        
+        if (allEntries.length === 0) {
+            alert("Es sind keine Einträge zum Exportieren vorhanden!");
+            return;
+        }
+
+        const dataStr = JSON.stringify(allEntries, null, 2); 
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const now = new Date();
+        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert(`Daten erfolgreich als ${filename} exportiert.`);
+    }
+
+    /**
+     * Liest die JSON-Datei und führt die Daten mit localStorage zusammen.
+     */
+    function importData() {
+        const file = jsonFileInput.files[0];
+        if (!file) {
+            alert("Bitte wählen Sie eine JSON-Datei aus.");
+            return;
+        }
+
+        importButton.disabled = true;
+        importStatusEl.textContent = 'Importiere...';
+        importStatusEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const importedEntries = JSON.parse(e.target.result);
+
+                if (!Array.isArray(importedEntries)) {
+                    throw new Error("Die Datei ist kein gültiges Array von Einträgen. Erwartet wurde ein JSON-Array ([...]).");
+                }
+
+                let currentEntries = loadEntriesFromLocalStorage();
+                let entriesAdded = 0;
+                let entriesOverwritten = 0;
+
+                // Zusammenführen (Merge-Logik)
+                importedEntries.forEach(entry => {
+                    // Sicherstellen, dass die ID korrekt für den lokalen Speicher formatiert ist
+                    const docId = entry.date + '_' + entry.timePeriod;
+                    entry.id = docId; 
+
+                    const existingIndex = currentEntries.findIndex(e => e.id === docId);
+
+                    if (existingIndex > -1) {
+                        currentEntries[existingIndex] = entry;
+                        entriesOverwritten++;
+                    } else {
+                        currentEntries.push(entry);
+                        entriesAdded++;
+                    }
+                });
+
+                saveEntriesToLocalStorage(currentEntries);
+                
+                renderSortedHistory(currentEntries);
+
+                importStatusEl.textContent = `Import erfolgreich! ${entriesAdded} neue Einträge hinzugefügt, ${entriesOverwritten} überschrieben.`;
+                importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+
+            } catch (error) {
+                console.error("Fehler beim Importieren oder Parsen:", error);
+                importStatusEl.textContent = `Importfehler: ${error.message}`;
+                importStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            } finally {
+                importButton.disabled = false;
+                jsonFileInput.value = ''; 
+            }
+        };
+
+        reader.onerror = function() {
+            importStatusEl.textContent = 'Fehler beim Lesen der Datei.';
+            importStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            importButton.disabled = false;
+        };
+
+        reader.readAsText(file);
     }
 
 
@@ -678,44 +824,36 @@
     }
 
     // ******************************************************
-    // AB HIER: KORRIGIERTE CHART.JS LOGIK (Verschoben)
+    // CHART.JS LOGIK
     // ******************************************************
     
     let moodChartInstance = null;
     const chartStatusEl = document.getElementById('chart-status');
-    const moodChartEl = document.getElementById('moodChart'); // Das Canvas-Element
-    const chartContainerEl = document.getElementById('chart-container'); // Der scrollbare Container
+    const moodChartEl = document.getElementById('moodChart'); 
+    const chartContainerEl = document.getElementById('chart-container'); 
 
     // --- TEMPERATUR-NORMALISIERUNGSKONSTANTEN ---
-    // Definiert den Temperaturbereich, der auf die Skala 0-10 abgebildet wird.
-    const TEMP_MIN = -5;  // -5.0°C entspricht Wert 0
-    const TEMP_MAX = 25;  // 25.0°C entspricht Wert 10
-    const TEMP_RANGE = TEMP_MAX - TEMP_MIN; // 30°C (25 - (-5))
+    const TEMP_MIN = -5;  
+    const TEMP_MAX = 25;  
+    const TEMP_RANGE = TEMP_MAX - TEMP_MIN; 
 
     /**
      * Skaliert eine Temperatur von [TEMP_MIN, TEMP_MAX] linear auf [0, 10].
-     * @param {number} temp Die tatsächliche Temperatur in °C.
-     * @returns {number} Der normalisierte Wert zwischen 0, 10.
      */
     function normalizeTemperature(temp) {
         if (temp === null || temp === undefined) return null;
         if (TEMP_RANGE === 0) return 5; 
 
-        // Begrenzt den Wert auf den definierten Bereich, damit er nicht außerhalb von 0-10 skaliert
         let clampedTemp = Math.max(TEMP_MIN, Math.min(TEMP_MAX, temp)); 
         
-        // Normalisierungsformel: (Wert - Min) / Range * 10
         return ((clampedTemp - TEMP_MIN) / TEMP_RANGE) * 10;
     }
 
     /**
      * Re-transformiert einen normalisierten Wert (0-10) zurück in die tatsächliche Temperatur.
-     * @param {number} normalizedValue Der normalisierte Wert.
-     * @returns {number} Die tatsächliche Temperatur in °C.
      */
     function denormalizeTemperature(normalizedValue) {
         if (normalizedValue === null || normalizedValue === undefined) return null;
-        // Denormalisierungsformel: (Normalisierter Wert / 10 * Range) + Min
         return (normalizedValue / 10 * TEMP_RANGE) + TEMP_MIN;
     }
 
@@ -725,7 +863,6 @@
      * @param {Array<object>} entries Alle Stimmungseinträge.
      */
     function renderMoodChart(entries) {
-        // Prüfen, ob Chart.js global verfügbar ist, da es in einem separaten <script> geladen wird
         if (typeof Chart === 'undefined') { 
             console.error("Chart.js ist nicht geladen.");
             return; 
@@ -738,7 +875,7 @@
             const dateKey = entry.date;
             const moodValue = window.MOOD_VALUES[entry.mood] || 3; 
             const tempValue = entry.temperature || null; 
-            const painValue = entry.pain; // Wert kann 0 sein
+            const painValue = entry.pain; 
             
             if (!acc[dateKey]) {
                 acc[dateKey] = { 
@@ -752,12 +889,10 @@
             acc[dateKey].moodCount++;
             
             if (tempValue !== null) {
-                // Hier den ORIGINALEN Wert zur Summe hinzufügen
                 acc[dateKey].tempSum += tempValue;
                 acc[dateKey].tempCount++;
             }
             
-            // Schmerz ist nur dann gültig, wenn es nicht null oder undefined ist (auch 0 ist gültig)
             if (painValue !== undefined && painValue !== null) {
                 acc[dateKey].painSum += painValue;
                 acc[dateKey].painCount++;
@@ -771,16 +906,14 @@
         const chartData = sortedDates.map(date => {
             const data = dailyData[date];
 
-            // Berechnung des Durchschnitts (Originalwert)
             const averageTempOriginal = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
             
             return {
                 date: date,
                 averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
-                // Normalisierter Temperaturwert für die Grafik
                 averageTempNormalized: normalizeTemperature(averageTempOriginal),
                 averagePain: data.painCount > 0 ? data.painSum / data.painCount : null, 
-                averageTempOriginal: averageTempOriginal // Originalwert für Tooltip behalten
+                averageTempOriginal: averageTempOriginal 
             };
         });
 
@@ -792,9 +925,7 @@
         }
         chartStatusEl.classList.add('hidden');
 
-        // **********************************************
-        // LOGIK FÜR DYNAMISCHE BREITENANPASSUNG 
-        // **********************************************
+        // Dynamische Breitenanpassung
         const numDataPoints = chartData.length;
         const PIXELS_PER_DATA_POINT = 60; 
         const calculatedWidth = numDataPoints * PIXELS_PER_DATA_POINT;
@@ -802,16 +933,14 @@
         
         moodChartEl.style.width = `${finalChartWidth}px`;
         moodChartEl.height = 256; 
-        // **********************************************
 
         const ctx = moodChartEl.getContext('2d');
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
         const moodData = chartData.map(d => d.averageMood);
-        // Verwende normalisierte Temperaturdaten
         const tempDataNormalized = chartData.map(d => d.averageTempNormalized);
         const painData = chartData.map(d => d.averagePain); 
         
-        // 3. Diagramm rendern mit DREI Datasets und DREI Achsen
+        // 3. Diagramm rendern mit DREI Datasets und ZWEI Hauptachsen
         moodChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -820,7 +949,7 @@
                     {
                         label: 'Ø Stimmung (1=Schlecht, 5=Gut)',
                         data: moodData,
-                        borderColor: '#4f46e5', // Indigo-600
+                        borderColor: '#4f46e5', 
                         backgroundColor: 'rgba(79, 70, 229, 0.2)',
                         borderWidth: 2,
                         tension: 0.3,
@@ -832,26 +961,26 @@
                     {
                         label: 'Ø Schmerz (0-10)', 
                         data: painData,
-                        borderColor: '#9333ea', // Lila-600
+                        borderColor: '#9333ea', 
                         backgroundColor: 'rgba(147, 51, 234, 0.3)',
                         borderWidth: 2,
                         tension: 0.3,
                         pointRadius: 5,
                         pointBackgroundColor: '#9333ea',
-                        yAxisID: 'pain', // Achse für Schmerz (und Temperaturlinie)
+                        yAxisID: 'pain', 
                         type: 'line', 
                         order: 3, 
                     },
                     {
-                        label: 'Ø Temperatur (Skaliert)', // Angepasstes Label
-                        data: tempDataNormalized, // Normalisierte Daten
-                        borderColor: '#ef4444', // Red-500
+                        label: 'Ø Temperatur (Skaliert)', 
+                        data: tempDataNormalized, 
+                        borderColor: '#ef4444', 
                         backgroundColor: 'rgba(239, 68, 68, 0.4)',
                         borderWidth: 2,
                         tension: 0.3,
                         pointRadius: 5,
                         pointBackgroundColor: '#ef4444',
-                        yAxisID: 'pain', // Verwendet dieselbe Achse wie Schmerz
+                        yAxisID: 'pain', 
                         type: 'line', 
                         order: 2,
                     }
@@ -880,23 +1009,20 @@
                         type: 'linear',
                         position: 'right', 
                         id: 'pain',
-                        min: 0, // WICHTIG: Min ist jetzt 0
+                        min: 0, 
                         max: 10, 
                         stepSize: 1, 
                         grid: {
                             drawOnChartArea: false 
                         },
                         title: {
-                            display: false, // Achsentitel entfernt
+                            display: false, 
                         },
                         ticks: {
-                            // Ticks in der Farbe der Schmerzlinie (Lila)
                             color: '#9333ea', 
                             callback: function(value) {
-                                // Zeigt NUR die reine Schmerzskala (0-10)
                                 return value.toFixed(0); 
                             },
-                            // Setze Padding, damit die Beschriftungen der Temp-Referenz rechts daneben Platz haben
                             padding: 30, 
                         }
                     },
@@ -907,26 +1033,20 @@
                         min: 0, 
                         max: 10, 
                         stepSize: 1, 
-                        // Achse direkt über der 'pain'-Achse positionieren
                         grid: {
                             drawOnChartArea: false,
-                            borderColor: 'transparent', // Keine zusätzliche Linie
-                            drawTicks: false // Zeichnet keine eigenen Tick-Markierungen
+                            borderColor: 'transparent', 
+                            drawTicks: false 
                         },
                         title: { 
-                            display: false // Achsentitel entfernt
+                            display: false 
                         },
-                        
                         ticks: {
-                            // Ticks in der Farbe der Temperaturlinie (Rot)
                             color: '#ef4444', 
                             callback: function(value) {
-                                // Die tatsächliche Temperatur (denormalisiert)
                                 const tempValue = denormalizeTemperature(value);
-                                // Wir zeigen die Temperatur-Referenz in Klammern an
                                 return `(≈${tempValue.toFixed(1)}°C)`; 
                             },
-                            // Kein Padding, damit die Beschriftung direkt nach dem Padding der 'pain'-Achse beginnt
                             padding: 0, 
                         }
                     },
@@ -964,18 +1084,12 @@
             }
         });
         
-        // BONUS: Nach dem Laden automatisch an den rechten Rand scrollen (aktuellstes Datum)
         chartContainerEl.scrollLeft = chartContainerEl.scrollWidth;
     }
 
-    // ******************************************************
-    // ENDE DER KORRIGIERTEN CHART.JS LOGIK
-    // ******************************************************
-
-
     // --- START DER ANWENDUNG ---
     setupFormListeners(); 
-    setupApp(); // Startet die App, lädt Historie und Wetter
+    setupApp(); 
 </script>
 </body>
 </html>
