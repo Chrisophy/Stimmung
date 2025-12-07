@@ -156,33 +156,8 @@
 </div> 
 
 <script>
-    // Ihre Konfigurationsdaten
-    const firebaseConfig = {
-      apiKey: "AIzaSyBhAG2dBj3iIvBLB5YnyAu-fWvX4ULjclM",
-      authDomain: "stimmungv1.firebaseapp.com",
-      projectId: "stimmungv1",
-      storageBucket: "stimmungv1.firebasestorage.app",
-      messagingSenderId: "114142901438",
-      appId: "1:114142901438:web:55ef0d26825727d7259aef"
-    };
-
-    // Definiere die globalen Variablen, die Ihr Haupt-Skript erwartet
-    var __firebase_config = JSON.stringify(firebaseConfig);
-    var __app_id = firebaseConfig.appId;
-    var __initial_auth_token = undefined;
-</script>
-
-<script type="module">
-    // Nur Firebase-Module importieren
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, onSnapshot, collection, serverTimestamp, setDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- GLOBALE VARIABLEN & FIREBASE INITIALISIERUNG ---
-    let db;
-    let auth;
-    let userId = null;
-    let isAuthReady = false;
+    // --- LOKALE SPEICHERKONSTANTE ---
+    const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
 
     // Globale Variablen für das Formular
     let selectedPeriod = null;
@@ -247,48 +222,42 @@
 
 
     /**
-     * Initialisiert Firebase und startet die anonyme Anmeldung.
+     * NEU: Lädt alle Einträge aus dem localStorage.
+     * @returns {Array<object>} Die Liste der Einträge.
      */
-    async function setupFirebase() {
-        if (typeof setLogLevel !== 'undefined') setLogLevel('error'); 
-
+    function loadEntriesFromLocalStorage() {
         try {
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-            
-            if (!firebaseConfig.apiKey) {
-                statusMessageEl.textContent = "Fehler: Firebase-Konfiguration fehlt."; 
-                return;
-            }
-
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            // Anonyme Anmeldung durchführen
-            if (!auth.currentUser) {
-                await signInAnonymously(auth);
-            }
-
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userId = user.uid;
-                    isAuthReady = true;
-                    // Listener starten, sobald der Benutzer bekannt ist
-                    setupHistoryListener();
-                    fetchWeather(); 
-                } else {
-                    console.warn("Benutzer nicht angemeldet. Anmeldeversuch läuft...");
-                }
-            });
-
-        } catch (error) {
-            console.error("Kritischer Fehler bei der Firebase-Initialisierung:", error);
-            loadingHistoryEl.textContent = "Fehler beim Laden der Einträge.";
-            statusMessageEl.textContent = "Kritischer Fehler bei DB-Verbindung. Konsole prüfen.";
-            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error("Fehler beim Laden aus localStorage:", e);
+            return [];
         }
     }
 
+    /**
+     * NEU: Speichert die gesamte Liste von Einträgen im localStorage.
+     * @param {Array<object>} entries Die Liste der Einträge.
+     */
+    function saveEntriesToLocalStorage(entries) {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(entries));
+        } catch (e) {
+            console.error("Fehler beim Speichern in localStorage:", e);
+        }
+    }
+
+
+    /**
+     * Der Firebase-Setup-Schritt wird durch das Laden der Historie ersetzt.
+     */
+    function setupApp() {
+        // Starte das Laden der Historie sofort, da keine Firebase-Auth nötig ist
+        loadHistoryAndStartListening();
+        // Starte Wetterabruf
+        fetchWeather(); 
+    }
+    
     /**
      * Ruft den Standort des Benutzers ab und fragt die Wetterdaten ab.
      */
@@ -458,15 +427,9 @@
     }
 
     /**
-     * Speichert den aktuellen Stimmungseintrag in Firestore.
+     * NEU: Speichert den aktuellen Stimmungseintrag in localStorage.
      */
-    async function saveEntry() {
-        if (!isAuthReady || !userId || !db) {
-            statusMessageEl.textContent = "Datenbank noch nicht bereit. Bitte 1-2 Sekunden warten und erneut versuchen.";
-            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
-            return;
-        }
-
+    function saveEntry() {
         const entryDate = entryDateEl.value; 
         if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
             statusMessageEl.textContent = "Bitte alle notwendigen Felder (Datum, Zeitraum, Stimmung, Schmerz) ausfüllen.";
@@ -480,26 +443,40 @@
 
         // Eindeutige ID aus Datum und Zeitraum
         const docId = `${entryDate}_${selectedPeriod}`; 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
         
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
 
+        // Einträge laden
+        const allEntries = loadEntriesFromLocalStorage();
+        
+        const newEntry = {
+            id: docId, // Verwenden Sie die DocId als lokale ID
+            date: entryDate, 
+            timePeriod: selectedPeriod,
+            mood: selectedMood,
+            pain: selectedPain, 
+            note: noteEl.value.trim(),
+            temperature: weather.temperature, 
+            weatherCondition: weather.weatherCondition, 
+            timestamp: new Date().getTime() // Lokaler Zeitstempel
+        };
+
+        // Bestehenden Eintrag finden und überschreiben oder neuen hinzufügen
+        const existingIndex = allEntries.findIndex(e => e.id === docId);
+        if (existingIndex > -1) {
+            allEntries[existingIndex] = newEntry; // Überschreiben
+        } else {
+            allEntries.push(newEntry); // Hinzufügen
+        }
+
         try {
-            // Speichern/Überschreiben des Dokuments
-            await setDoc(doc(db, collectionPath, docId), {
-                date: entryDate, 
-                timePeriod: selectedPeriod,
-                mood: selectedMood,
-                pain: selectedPain, 
-                note: noteEl.value.trim(),
-                temperature: weather.temperature, 
-                weatherCondition: weather.weatherCondition, 
-                timestamp: serverTimestamp() // Zeitstempel beim Speichern
-            });
+            saveEntriesToLocalStorage(allEntries);
 
             statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+
+            // Historie neu rendern
+            renderSortedHistory(allEntries);
 
             // Formular zurücksetzen
             setTimeout(() => {
@@ -515,7 +492,7 @@
 
         } catch (error) {
             console.error("Fehler beim Speichern des Eintrags:", error);
-            statusMessageEl.textContent = 'Fehler beim Speichern. Prüfe die Konsole. (Regeln?)';
+            statusMessageEl.textContent = 'Fehler beim Speichern. (Speicher voll?)';
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
         } finally {
             saveButton.disabled = false;
@@ -524,43 +501,33 @@
 
 
     /**
-     * Setzt den Realtime-Listener für die Historie.
+     * NEU: Lädt die Historie aus localStorage und startet das Rendering.
      */
-    function setupHistoryListener() {
-        if (!isAuthReady || !userId || !db) return;
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
-        const q = collection(db, collectionPath);
-
-        // onSnapshot wird bei jeder Änderung (Speichern/Löschen) aufgerufen
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const allEntries = [];
-            snapshot.forEach((doc) => {
-                allEntries.push({ id: doc.id, ...doc.data() });
-            });
-
-            // Sortierung: Neuestes Datum zuerst, dann nach Tageszeit (Nacht -> Abend)
-            const sortedEntries = allEntries.sort((a, b) => {
-                if (a.date < b.date) return 1;
-                if (a.date > b.date) return -1;
-                
-                const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
-                return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
-            });
-
-            renderHistory(sortedEntries);
-        }, (error) => {
-            console.error("Fehler beim Abrufen der Historie:", error);
-            loadingHistoryEl.textContent = "Fehler beim Laden der Historie. (Firebase Regeln prüfen?)";
-            loadingHistoryEl.classList.remove('hidden');
-        });
-        
-        // Unsubscriben, falls nötig: unsubscribe();
+    function loadHistoryAndStartListening() {
+        const allEntries = loadEntriesFromLocalStorage();
+        renderSortedHistory(allEntries);
     }
+    
+    /**
+     * Sortiert die Einträge und ruft das Rendering auf.
+     */
+    function renderSortedHistory(allEntries) {
+         // Sortierung: Neuestes Datum zuerst, dann nach Tageszeit (Nacht -> Abend)
+        const sortedEntries = allEntries.sort((a, b) => {
+            if (a.date < b.date) return 1;
+            if (a.date > b.date) return -1;
+            
+            const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
+            return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
+        });
+
+        renderHistory(sortedEntries);
+    }
+
 
     /**
      * Rendert die Historie in HTML und übergibt die Daten an das Chart.
+     * (Unverändert, verwendet jetzt lokal geladene Daten)
      * @param {Array<object>} entries Alle sortierten Stimmungseinträge.
      */
     function renderHistory(entries) {
@@ -583,6 +550,8 @@
             if (!acc[dateKey]) {
                 acc[dateKey] = [];
             }
+            // Hinzufügen des Timestamps für eine eventuelle sekundäre Sortierung
+            entry.timestamp = entry.timestamp || new Date(entry.date).getTime(); 
             acc[dateKey].push(entry);
             return acc;
         }, {});
@@ -613,8 +582,6 @@
 
             historyContainerEl.appendChild(dateGroup);
         });
-
-        
     }
 
 
@@ -652,15 +619,10 @@
     }
 
     /**
-     * Löscht alle gespeicherten Daten des anonymen Benutzers.
+     * NEU: Löscht alle gespeicherten Daten aus dem localStorage.
      */
-    async function resetData() {
-        if (!isAuthReady || !userId || !db) {
-            resetStatusEl.textContent = "Datenbank nicht bereit.";
-            return;
-        }
-
-        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten?")) {
+    function resetData() {
+        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) {
             return;
         }
 
@@ -668,26 +630,14 @@
         resetStatusEl.textContent = 'Lösche alle Daten...';
         resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `/artifacts/${appId}/users/${userId}/stimmungstagebuch`;
-        const q = collection(db, collectionPath);
-
         try {
-            const snapshot = await getDocs(q);
-            if (snapshot.size === 0) {
-                resetStatusEl.textContent = 'Keine Einträge zum Löschen gefunden.';
-                resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-                return;
-            }
-
-            const deletePromises = [];
-            snapshot.forEach((document) => {
-                deletePromises.push(deleteDoc(doc(db, collectionPath, document.id)));
-            });
-
-            await Promise.all(deletePromises);
-            resetStatusEl.textContent = `Erfolgreich ${snapshot.size} Einträge gelöscht!`;
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            
+            resetStatusEl.textContent = `Erfolgreich alle Einträge gelöscht!`;
             resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+            
+            // UI neu rendern
+            renderHistory([]); 
 
         } catch (error) {
             console.error("Fehler beim Löschen der Einträge:", error);
@@ -727,13 +677,14 @@
 
     // --- START DER ANWENDUNG ---
     setupFormListeners(); 
-    setupFirebase();
+    setupApp(); // Startet die App, lädt Historie und Wetter
 </script>
 
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
 <script>
-    // Dieses Skript greift auf die globalen Variablen (window.MOOD_VALUES, window.formatDateShort etc.) aus dem Modul-Skript zu.
+    // Dieses Skript ist unverändert und greift nun auf die globalen Variablen und 
+    // die Funktion renderHistory zu, die ihre Daten aus localStorage bezieht.
 
     let moodChartInstance = null;
     const chartStatusEl = document.getElementById('chart-status');
