@@ -171,8 +171,27 @@
                 </script>
             </div>
         </div>
+
         <div class="mb-6">
-            <label for="note" class="font-medium block mb-2">4. Notizen (optional):</label>
+            <p class="font-medium mb-2">4. Schmerzregionen (Mehrfachauswahl möglich):</p>
+            <fieldset id="pain-regions" class="space-y-2 p-3 border border-gray-300 rounded-lg">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" name="schmerzregion" value="oben" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                    <span class="text-gray-700">Oben (Kopf, Nacken, Schultern)</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" name="schmerzregion" value="mitte" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                    <span class="text-gray-700">Mitte (Rücken, Brustkorb, Bauch)</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input type="checkbox" name="schmerzregion" value="unten" class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500">
+                    <span class="text-gray-700">Unten (Hüfte, Beine, Füße)</span>
+                </label>
+            </fieldset>
+        </div>
+        
+        <div class="mb-6">
+            <label for="note" class="font-medium block mb-2">5. Notizen (optional):</label>
             <textarea id="note" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" rows="2" placeholder="Was war heute wichtig oder wie fühlst du dich genauer?"></textarea>
         </div>
 
@@ -202,6 +221,22 @@
             <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: 0-10)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: -5°C bis 25°C)</p>
         </div>
+    </section>
+
+    <section class="mt-8 mb-8 p-6 bg-gray-50 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">📍 Häufigkeit der Schmerzregionen</h2>
+        <p class="text-sm text-gray-500 mb-4">Dieses Diagramm zeigt, welche Schmerzregionen am häufigsten erfasst wurden.</p>
+        
+        <div id="pain-chart-container" class="relative h-64 w-full flex justify-center items-center"> 
+            <canvas id="painRegionChart"></canvas>
+            <p id="pain-chart-status" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
+                Nicht genügend Daten für dieses Diagramm (min. 1 Eintrag mit Schmerzregion).
+            </p>
+        </div>
+
+        <button id="export-pain-chart-button" class="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-150 shadow-md mt-4">
+            🖼️ Regionen-Diagramm speichern oder drucken
+        </button>
     </section>
     
     <a href="#verwaltung-section" class="block w-full text-center bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm mb-4">
@@ -280,6 +315,10 @@
             <p class="text-sm">
                 Sie können zu einem wählbaren Datum und verschiedenen Tageszeiten (Morgen, Mittag, Abend, Nacht) Ihre aktuelle Stimmung (Skala: sehr gut bis sehr schlecht) sowie die Schmerzintensität (Skala 0-10) auswählen und optionale Notizen hinzufügen.
             </p>
+            <p class="font-semibold mt-2">Schmerzregionen NEU:</p>
+            <p class="text-sm">
+                Zusätzlich zur Intensität können Sie nun die Schmerzregion(en) (Oben, Mitte, Unten) erfassen.
+            </p>
             <p class="font-semibold mt-2">Automatische Ergänzung (Wetter):</p>
             <p class="text-sm">
                 Durch einmaligen Geolocation-Zugriff erfasst die Anwendung zusätzlich automatisch die Temperatur und den Wetterzustand des jeweiligen Zeitpunkts, um eine umfassendere Dokumentation zu ermöglichen.
@@ -290,9 +329,13 @@
             <p class="text-sm">
                 Alle gespeicherten Einträge werden in einer sortierten, chronologischen Historie angezeigt.
             </p>
-            <p class="font-semibold mt-2">Multivariate Analyse:</p>
+            <p class="font-semibold mt-2">Multivariate Analyse (Linien-Chart):</p>
             <p class="text-sm">
                 Sie können den multivariaten Verlauf Ihrer Stimmung, der Schmerzintensität und der Temperatur in einem übersichtlichen Liniendiagramm analysieren, um tiefere Zusammenhänge, Muster und Trends in Ihrem Wohlbefinden zu erkennen.
+            </p>
+            <p class="font-semibold mt-2">Schmerzregionen-Analyse (Kuchen-Chart):</p>
+            <p class="text-sm">
+                Ein zusätzliches Diagramm zeigt die prozentuale Verteilung der erfassten Schmerzregionen an, um festzustellen, wo Schmerzen am häufigsten auftreten.
             </p>
 
             <h3 class="text-xl font-bold text-gray-800 border-b pb-1">💾 Datensicherheit & Verwaltung</h3>
@@ -363,6 +406,13 @@
         85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 
         96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️'
     };
+    
+    // NEU: Schmerzregionen Mapping
+    const PAIN_REGION_NAMES = {
+        'oben': 'Oben', 
+        'mitte': 'Mitte', 
+        'unten': 'Unten'
+    };
     // ----------------------------------------------------
 
     // Status-Elemente
@@ -370,6 +420,7 @@
     const timePeriodsEl = document.getElementById('time-periods');
     const moodSelectionEl = document.getElementById('mood-selection');
     const painSelectionEl = document.getElementById('pain-selection'); 
+    const painRegionsFieldset = document.getElementById('pain-regions'); // NEU: Fieldset für Regionen
     const noteEl = document.getElementById('note');
     const saveButton = document.getElementById('save-entry');
     const statusMessageEl = document.getElementById('status-message');
@@ -393,8 +444,9 @@
     const importStatusEl = document.getElementById('import-status');
     const exportButton = document.getElementById('export-data');
     
-    // NEU: CHART EXPORT BUTTON
+    // NEU: CHART EXPORT BUTTONS
     const exportChartButton = document.getElementById('export-chart-button');
+    const exportPainChartButton = document.getElementById('export-pain-chart-button'); // NEU
 
     // HILFE MODAL ELEMENTE
     const helpButton = document.getElementById('help-button');
@@ -659,27 +711,34 @@
     
     /**
      * Exportiert das Diagramm als PNG-Bild oder öffnet es zum Drucken.
+     * @param {string} chartId Die ID des Canvas-Elements.
      */
-    function exportChart() {
-        if (!moodChartInstance) {
-            alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält.");
+    function exportChart(chartId) {
+        const chartCanvas = document.getElementById(chartId);
+        if (!chartCanvas) {
+            alert("Das Diagramm existiert nicht.");
             return;
         }
-
-        const chartCanvas = document.getElementById('moodChart');
-        if (!chartCanvas) return;
+        
+        // Prüfen, ob eine Chart.js Instanz für diesen Canvas existiert.
+        const chartInstance = Chart.getChart(chartCanvas);
+        if (!chartInstance) {
+             alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält.");
+             return;
+        }
 
         // Erstellt ein Bild der aktuellen Canvas
         const imageURL = chartCanvas.toDataURL('image/png');
 
         // Optional: Den Benutzer fragen, ob er speichern oder drucken möchte
         const action = prompt("Möchten Sie das Diagramm speichern (S) oder drucken (D)?", "S");
+        const filenamePrefix = chartId.includes('moodChart') ? 'stimmungs_chart' : 'schmerzregionen_chart';
 
         if (action && action.toUpperCase() === 'S') {
             // Speichern als PNG
             const a = document.createElement('a');
             a.href = imageURL;
-            a.download = `stimmungs_chart_${new Date().toISOString().split('T')[0]}.png`;
+            a.download = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -743,7 +802,8 @@
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
         exportButton.addEventListener('click', exportData); 
-        exportChartButton.addEventListener('click', exportChart); // NEU: Chart Export
+        exportChartButton.addEventListener('click', () => exportChart('moodChart')); // NEU: Chart Export
+        exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); // NEU: Pain Chart Export
         
         jsonFileInput.addEventListener('change', () => {
             importButton.disabled = !jsonFileInput.files.length;
@@ -776,6 +836,18 @@
     }
 
     /**
+     * Sammelt die ausgewählten Schmerzregionen aus den Checkboxes.
+     * @returns {Array<string>} Array von Region-Codes (z.B. ['oben', 'mitte']).
+     */
+    function getSelectedPainRegions() {
+        const selectedRegions = [];
+        painRegionsFieldset.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedRegions.push(checkbox.value);
+        });
+        return selectedRegions;
+    }
+
+    /**
      * Speichert den aktuellen Stimmungseintrag in localStorage.
      */
     function saveEntry() {
@@ -793,6 +865,7 @@
         const docId = `${entryDate}_${selectedPeriod}`; 
         
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
+        const painRegions = getSelectedPainRegions(); // NEU: Schmerzregionen abrufen
 
         const newEntry = {
             id: docId, 
@@ -800,6 +873,7 @@
             timePeriod: selectedPeriod,
             mood: selectedMood,
             pain: selectedPain, 
+            schmerzRegionen: painRegions, // NEU: Speichern des Regionen-Arrays
             note: noteEl.value.trim(),
             temperature: weather.temperature, 
             weatherCondition: weather.weatherCondition, 
@@ -822,6 +896,9 @@
             // NEU: Filter aktualisieren und Historie neu rendern
             populateYearFilter(allStoredEntries);
             filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+            
+            // NEU: Schmerzregionen-Chart aktualisieren
+            renderPainRegionChart(allStoredEntries);
 
             // Formular zurücksetzen
             setTimeout(() => {
@@ -831,6 +908,10 @@
                 selectedMood = null;
                 selectedPain = null; 
                 document.querySelectorAll('.period-button, .mood-icon, .pain-button').forEach(el => el.classList.remove('selected-period', 'selected-mood', 'selected-pain')); 
+                
+                // NEU: Schmerzregionen Checkboxes zurücksetzen
+                painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+
                 checkFormValidity();
                 statusMessageEl.textContent = '';
                 
@@ -1049,7 +1130,10 @@
         if (updateChartFilter) {
             populateYearFilter(allStoredEntries);
             if (typeof renderMoodChart !== 'undefined') {
-                 renderMoodChart(allStoredEntries); // Das Chart nutzt immer ALLE Daten
+                 renderMoodChart(allStoredEntries); // Das Linien-Chart nutzt immer ALLE Daten
+            }
+            if (typeof renderPainRegionChart !== 'undefined') {
+                 renderPainRegionChart(allStoredEntries); // NEU: Das Pain-Chart nutzt immer ALLE Daten
             }
         }
 
@@ -1128,6 +1212,11 @@
         const painDisplay = entry.pain !== undefined && entry.pain !== null 
                              ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
                              : '';
+        
+        // NEU: Schmerzregionen anzeigen
+        const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
+                             ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
+                             : '';
 
         let weatherLine = '';
         if (entry.temperature !== undefined && entry.temperature !== null) {
@@ -1144,7 +1233,7 @@
                     <span class="text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
                     <span class="text-3xl">${moodEmoji}</span>
                     <div class="text-sm">
-                        <p class="font-semibold text-gray-700">${moodName}${painDisplay}</p>
+                        <p class="font-semibold text-gray-700 flex items-center">${moodName}${painDisplay}${painRegions}</p>
                         ${entry.note || weatherLine ? 
                             `<p class="text-gray-500 italic text-xs">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
                         : ''}
@@ -1277,6 +1366,9 @@
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
 
+                    // NEU: Sicherstellen, dass `schmerzRegionen` ein Array ist, falls es fehlt
+                    entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
+
                     const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
 
                     if (existingIndex > -1) {
@@ -1351,6 +1443,11 @@
     const chartStatusEl = document.getElementById('chart-status');
     const moodChartEl = document.getElementById('moodChart'); 
     const chartContainerEl = document.getElementById('chart-container'); 
+    
+    // NEU: Pain Region Chart Variablen
+    let painRegionChartInstance = null;
+    const painRegionChartEl = document.getElementById('painRegionChart');
+    const painChartStatusEl = document.getElementById('pain-chart-status');
 
     // --- TEMPERATUR-NORMALISIERUNGSKONSTANTEN ---
     const TEMP_MIN = -5;  
@@ -1379,7 +1476,7 @@
 
 
     /**
-     * Berechnet den durchschnittlichen Stimmungswert, Temperatur und SCHMERZ pro Tag und rendert das Diagramm.
+     * Berechnet den durchschnittlichen Stimmungswert, Temperatur und SCHMERZ pro Tag und rendert das Liniendiagramm.
      * @param {Array<object>} entries Alle Stimmungseinträge.
      */
     function renderMoodChart(entries) {
@@ -1609,6 +1706,103 @@
         });
         
         chartContainerEl.scrollLeft = chartContainerEl.scrollWidth;
+    }
+
+    /**
+     * NEU: Berechnet die Häufigkeit der Schmerzregionen und rendert das Tortendiagramm.
+     * @param {Array<object>} entries Alle Stimmungseinträge.
+     */
+    function renderPainRegionChart(entries) {
+        if (typeof Chart === 'undefined') { 
+            console.error("Chart.js ist nicht geladen.");
+            return; 
+        }
+
+        if (painRegionChartInstance) { painRegionChartInstance.destroy(); }
+        
+        // 1. Häufigkeit der Regionen zählen
+        const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
+        let totalCount = 0;
+
+        allStoredEntries.forEach(entry => {
+            if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
+                entry.schmerzRegionen.forEach(region => {
+                    if (regionCounts.hasOwnProperty(region)) {
+                        regionCounts[region]++;
+                        totalCount++;
+                    }
+                });
+            }
+        });
+        
+        // Zeige Warnung, wenn keine Regionen erfasst wurden
+        if (totalCount === 0) {
+            painChartStatusEl.classList.remove('hidden');
+            exportPainChartButton.disabled = true;
+            return;
+        }
+        painChartStatusEl.classList.add('hidden');
+        exportPainChartButton.disabled = false;
+
+        const labels = Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]);
+        const data = Object.values(regionCounts);
+        
+        // Farben für das Chart (Lila Töne)
+        const backgroundColors = [
+            'rgba(147, 51, 234, 0.8)', // Lila (Purple-600)
+            'rgba(192, 132, 252, 0.8)', // Hell-Lila (Purple-400)
+            'rgba(233, 213, 255, 0.8)' // Sehr helles Lila (Purple-200)
+        ];
+        
+        const borderColors = [
+            'rgb(147, 51, 234)',
+            'rgb(192, 132, 252)',
+            'rgb(233, 213, 255)'
+        ];
+
+        const ctx = painRegionChartEl.getContext('2d');
+        painRegionChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Häufigkeit der Schmerzregionen',
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 20
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: `Gesamte Schmerzereignisse: ${totalCount}`,
+                        font: {
+                            size: 16
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const count = context.parsed;
+                                const total = context.chart._total;
+                                const percentage = ((count / total) * 100).toFixed(1) + '%';
+                                return `${context.label}: ${count} mal (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 
     // --- START DER ANWENDUNG ---
