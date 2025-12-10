@@ -3,120 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stimmungs-Tagebuch mit Wetter & Schmerz (Lokal)</title>
+    <title>Stimmungs- & Vital-Tagebuch (Lokal)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Setzt die Schriftart Inter */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-            color: #1f2937;
-        }
-        .mood-icon {
-            font-size: 2.5rem;
-            line-height: 1;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .mood-icon:hover {
-            transform: scale(1.1);
-        }
-        .selected-mood {
-            transform: scale(1.2) !important;
-            box-shadow: 0 0 0 4px #4f46e5;
-            border-radius: 9999px;
-            padding: 4px;
-        }
-        .period-button {
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        .period-button:active {
-            transform: scale(0.98);
-        }
-        .selected-period {
-            background-color: #4f46e5 !important;
-            color: white !important;
-            font-weight: 600;
-        }
-        /* Styles für Schmerz-Buttons */
-        .pain-button.selected-pain {
-            transform: scale(1.1) !important;
-            box-shadow: 0 0 0 3px #9333ea; /* Lila-Fokus */
-            font-weight: 700;
-            background-color: #9333ea !important; /* Lila-Hintergrund */
-            color: white !important;
-            border-color: #9333ea !important;
-        }
-        /* Styles für das Modal-Fenster */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: none; /* Standardmäßig versteckt */
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            overflow-y: auto; /* Behebt das Scroll-Problem */
-        }
-        .modal-content {
-            background-color: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            max-width: 90%;
-            width: 500px;
-            margin: 2rem 0;
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
-            position: relative;
-            /* BEHOBEN: Scroll-Fähigkeit für Inhalt */
-            max-height: 90vh; 
-            overflow-y: auto;
-        }
-        .modal-show {
-            display: flex;
-        }
-        /* Style für den Löschen-Button in der Historie */
-        .delete-entry-btn {
-            color: #f87171; /* Rot */
-            font-size: 1.5rem;
-            padding: 0.1rem 0.5rem;
-            line-height: 1;
-            transition: color 0.1s;
-        }
-        .delete-entry-btn:hover {
-            color: #ef4444; 
-            transform: scale(1.1);
-        }
-        /* Stil für die Statistikkarten */
-        .stat-card {
-            padding: 1rem;
-            border-radius: 0.5rem;
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            text-align: center;
-        }
-        .stat-card-title {
-            font-size: 0.875rem; /* text-sm */
-            font-weight: 500; /* font-medium */
-            color: #6b7280; /* text-gray-500 */
-        }
-        .stat-card-value {
-            font-size: 1.5rem; /* text-2xl */
-            font-weight: 700; /* font-bold */
-            margin-top: 0.25rem;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+        .mood-icon { font-size: 2.5rem; line-height: 1; transition: transform 0.2s, box-shadow 0.2s; }
+        .mood-icon:hover { transform: scale(1.1); }
+        .selected-mood { transform: scale(1.2) !important; box-shadow: 0 0 0 4px #4f46e5; border-radius: 9999px; padding: 4px; }
+        .period-button { transition: background-color 0.2s, transform 0.1s; }
+        .period-button:active { transform: scale(0.98); }
+        .selected-period { background-color: #4f46e5 !important; color: white !important; font-weight: 600; }
+        .pain-button.selected-pain { transform: scale(1.1) !important; box-shadow: 0 0 0 3px #9333ea; font-weight: 700; background-color: #9333ea !important; color: white !important; border-color: #9333ea !important; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; overflow-y: auto; }
+        .modal-content { background-color: white; padding: 1.5rem; border-radius: 0.75rem; max-width: 90%; width: 500px; margin: 2rem 0; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2); position: relative; max-height: 90vh; overflow-y: auto; }
+        .modal-show { display: flex; }
+        .delete-entry-btn { color: #f87171; font-size: 1.5rem; padding: 0.1rem 0.5rem; line-height: 1; transition: color 0.1s; }
+        .delete-entry-btn:hover { color: #ef4444; transform: scale(1.1); }
+        .stat-card { padding: 1rem; border-radius: 0.5rem; background-color: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center; }
+        .stat-card-title { font-size: 0.875rem; font-weight: 500; color: #6b7280; }
+        .stat-card-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
     </style>
 </head>
 <body>
 
 <div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
     <header class="text-center mb-6 pt-4">
-        <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs-Tagebuch</h1>
+        <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs- & Vital-Tagebuch</h1>
         <p class="text-gray-500 mt-1">Wie geht es Dir?</p>
-        
         <p id="weather-status" class="text-center text-sm text-gray-400 mt-2">Lade Standort...</p> 
     </header>
 
@@ -160,7 +74,6 @@
             <p class="font-medium mb-2">3. Schmerzintensität (0-10):</p>
             <div id="pain-selection" class="flex flex-wrap justify-center sm:justify-between gap-1">
                 <script>
-                    // Startet bei 0
                     for(let i = 0; i <= 10; i++) { 
                         document.write(`
                             <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 0 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
@@ -189,9 +102,38 @@
                 </label>
             </fieldset>
         </div>
+
+        <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="font-medium mb-3 text-gray-700">5. Vitalfunktionen (optional):</p>
+            <div class="space-y-3">
+                <div class="flex space-x-3">
+                    <div class="flex-1">
+                        <label for="puls" class="block text-xs font-medium text-gray-500">Puls (BPM)</label>
+                        <input type="number" id="puls" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 65" min="20">
+                    </div>
+                    <div class="flex-1">
+                        <label for="gewicht" class="block text-xs font-medium text-gray-500">Gewicht (kg)</label>
+                        <input type="number" id="gewicht" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 75.5" step="0.1" min="10">
+                    </div>
+                </div>
+                <div class="flex space-x-3">
+                    <div class="flex-1">
+                        <label for="blutzucker" class="block text-xs font-medium text-gray-500">Blutzucker (mg/dL)</label>
+                        <input type="number" id="blutzucker" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 120" min="20">
+                    </div>
+                    <div class="flex-1">
+                        <label for="blutdruck" class="block text-xs font-medium text-gray-500">Blutdruck (Sys/Dia)</label>
+                        <div class="flex space-x-1">
+                            <input type="number" id="blutdruckSys" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="Sys" min="50">
+                            <input type="number" id="blutdruckDia" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="Dia" min="30">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div class="mb-6">
-            <label for="note" class="font-medium block mb-2">5. Notizen (optional):</label>
+            <label for="note" class="font-medium block mb-2">6. Notizen (optional):</label>
             <textarea id="note" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" rows="2" placeholder="Was war heute wichtig oder wie fühlst du dich genauer?"></textarea>
         </div>
 
@@ -213,13 +155,35 @@
         </div>
         
         <button id="export-chart-button" class="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-150 shadow-md mt-4">
-            🖼️ Diagramm speichern oder drucken
+            🖼️ Stimmungs-Chart speichern oder drucken
         </button>
 
         <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
             <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">Stimmung (Links: 1-5)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: 0-10)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: -5°C bis 25°C)</p>
+        </div>
+    </section>
+
+    <section class="mt-8 mb-8 p-6 bg-gray-50 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">💖 Vitalfunktionen-Verlauf</h2>
+        
+        <div id="vital-chart-container" class="relative h-64 w-full overflow-x-auto"> 
+            <canvas id="vitalChart" style="min-width: 300px;"></canvas>
+            <p id="vital-chart-status" class="absolute inset-0 flex items-center justify-center text-gray-500 hidden">
+                Nicht genügend Daten für dieses Diagramm (min. 1 Eintrag mit Vitaldaten).
+            </p>
+        </div>
+
+        <button id="export-vital-chart-button" class="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-150 shadow-md mt-4">
+            🖼️ Vital-Chart speichern oder drucken
+        </button>
+
+        <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
+            <p class="inline-block px-2 py-1 rounded-md bg-green-100 text-green-800 font-medium">Puls (BPM)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-blue-100 text-blue-800 font-medium">Blutdruck (mmHg)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-yellow-100 text-yellow-800 font-medium">Blutzucker (mg/dL)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-pink-100 text-pink-800 font-medium">Gewicht (kg)</p>
         </div>
     </section>
 
@@ -315,9 +279,13 @@
             <p class="text-sm">
                 Sie können zu einem wählbaren Datum und verschiedenen Tageszeiten (Morgen, Mittag, Abend, Nacht) Ihre aktuelle Stimmung (Skala: sehr gut bis sehr schlecht) sowie die Schmerzintensität (Skala 0-10) auswählen und optionale Notizen hinzufügen.
             </p>
-            <p class="font-semibold mt-2">Schmerzregionen NEU:</p>
+            <p class="font-semibold mt-2">Schmerzregionen:</p>
             <p class="text-sm">
                 Zusätzlich zur Intensität können Sie nun die Schmerzregion(en) (Oben, Mitte, Unten) erfassen.
+            </p>
+            <p class="font-semibold mt-2">Vitalfunktionen (NEU):</p>
+            <p class="text-sm">
+                Optional können Puls, Gewicht, Blutzucker und Blutdruck (Systolisch/Diastolisch) erfasst werden.
             </p>
             <p class="font-semibold mt-2">Automatische Ergänzung (Wetter):</p>
             <p class="text-sm">
@@ -329,9 +297,13 @@
             <p class="text-sm">
                 Alle gespeicherten Einträge werden in einer sortierten, chronologischen Historie angezeigt.
             </p>
-            <p class="font-semibold mt-2">Multivariate Analyse (Linien-Chart):</p>
+            <p class="font-semibold mt-2">Multivariate Analyse (Linien-Chart für Stimmung/Schmerz/Wetter):</p>
             <p class="text-sm">
                 Sie können den multivariaten Verlauf Ihrer Stimmung, der Schmerzintensität und der Temperatur in einem übersichtlichen Liniendiagramm analysieren, um tiefere Zusammenhänge, Muster und Trends in Ihrem Wohlbefinden zu erkennen.
+            </p>
+            <p class="font-semibold mt-2">Vitalfunktionen-Analyse (Linien-Chart NEU):</p>
+            <p class="text-sm">
+                Ein dediziertes Diagramm zeigt die Entwicklung von Puls, Gewicht, Blutzucker und Blutdruck über die Zeit.
             </p>
             <p class="font-semibold mt-2">Schmerzregionen-Analyse (Kuchen-Chart):</p>
             <p class="text-sm">
@@ -359,68 +331,30 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
 
 <script>
-    // --- LOKALE SPEICHERKONSTANTE ---
     const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
-
-    // Globale Variablen für das Formular
     let selectedPeriod = null;
     let selectedMood = null;
     let selectedPain = null; 
-    
-    // Globale Variable für alle Einträge
     let allStoredEntries = []; 
-
-    // --- WETTER VARIABLEN (Open-Meteo, kostenfrei) ---
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
     let currentTemperatureData = null; 
     let userLatitude = null; 
     let userLongitude = null; 
-    let lastFetchedDate = null; // Speichert das Startdatum des geladenen 14-Tage-Fensters
-
-    // Zeiträume und die zugehörige Stunde für die Wetterzuordnung
-    const PERIOD_TIME_MAP = {
-        'Nacht': 3,
-        'Morgen': 9,  
-        'Mittag': 13, 
-        'Abend': 19,    
-    };
-    
-    // NEU: Zeiträume für die automatische Vorauswahl (von Stunde X bis Stunde Y-1)
-    const AUTO_PERIOD_MAP = [
-        { name: 'Nacht', startHour: 0, endHour: 5 },  // 00:00 bis 04:59
-        { name: 'Morgen', startHour: 5, endHour: 12 }, // 05:00 bis 11:59
-        { name: 'Mittag', startHour: 12, endHour: 18 }, // 12:00 bis 17:59
-        { name: 'Abend', startHour: 18, endHour: 24 } // 18:00 bis 23:59
-    ];
-
-
-    // WMO Code Mapping 
-    const WMO_CODE_MAP = {
-        0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 
-        45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 
-        55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 
-        61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 
-        66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 
-        73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 
-        80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer 🌦️', 82: 'Starke Regenschauer ⛈️', 
-        85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 
-        96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️'
-    };
-    
-    // NEU: Schmerzregionen Mapping
-    const PAIN_REGION_NAMES = {
-        'oben': 'Oben', 
-        'mitte': 'Mitte', 
-        'unten': 'Unten'
-    };
-    // ----------------------------------------------------
-
-    // Status-Elemente
+    let lastFetchedDate = null; 
+    const PERIOD_TIME_MAP = { 'Nacht': 3, 'Morgen': 9, 'Mittag': 13, 'Abend': 19 };
+    const AUTO_PERIOD_MAP = [ { name: 'Nacht', startHour: 0, endHour: 5 }, { name: 'Morgen', startHour: 5, endHour: 12 }, { name: 'Mittag', startHour: 12, endHour: 18 }, { name: 'Abend', startHour: 18, endHour: 24 } ];
+    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer 🌦️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
+    const PAIN_REGION_NAMES = { 'oben': 'Oben', 'mitte': 'Mitte', 'unten': 'Unten' };
     const entryDateEl = document.getElementById('entry-date'); 
     const timePeriodsEl = document.getElementById('time-periods');
     const moodSelectionEl = document.getElementById('mood-selection');
     const painSelectionEl = document.getElementById('pain-selection'); 
-    const painRegionsFieldset = document.getElementById('pain-regions'); // NEU: Fieldset für Regionen
+    const painRegionsFieldset = document.getElementById('pain-regions'); 
+    const pulsEl = document.getElementById('puls'); 
+    const gewichtEl = document.getElementById('gewicht'); 
+    const blutzuckerEl = document.getElementById('blutzucker'); 
+    const blutdruckSysEl = document.getElementById('blutdruckSys'); 
+    const blutdruckDiaEl = document.getElementById('blutdruckDia');
     const noteEl = document.getElementById('note');
     const saveButton = document.getElementById('save-entry');
     const statusMessageEl = document.getElementById('status-message');
@@ -430,53 +364,25 @@
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
     const weatherStatusEl = document.getElementById('weather-status'); 
-    
-    // NEU: JAHR/MONAT FILTER ELEMENTE
     const yearFilterEl = document.getElementById('year-filter'); 
     const monthFilterEl = document.getElementById('month-filter');
-    
-    // NEU: STATISTIK ELEMENT
     const statsContainerEl = document.getElementById('stats-container');
-
-    // NEUE IMPORT/EXPORT ELEMENTE
     const jsonFileInput = document.getElementById('json-file-input');
     const importButton = document.getElementById('import-data');
     const importStatusEl = document.getElementById('import-status');
     const exportButton = document.getElementById('export-data');
-    
-    // NEU: CHART EXPORT BUTTONS
     const exportChartButton = document.getElementById('export-chart-button');
-    const exportPainChartButton = document.getElementById('export-pain-chart-button'); // NEU
-
-    // HILFE MODAL ELEMENTE
+    const exportPainChartButton = document.getElementById('export-pain-chart-button'); 
+    const exportVitalChartButton = document.getElementById('export-vital-chart-button');
     const helpButton = document.getElementById('help-button');
     const helpModal = document.getElementById('help-modal');
     const closeModalButton = document.getElementById('close-modal');
-
-    // Setze das Standarddatum (HEUTE)
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
+    const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
+    window.MOOD_NAMES = { 'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht' };
+    window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
+    const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
 
-    // Mappings
-    const MOOD_EMOJIS = {
-        'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞'
-    };
-    window.MOOD_NAMES = {
-        'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht'
-    };
-    window.MOOD_VALUES = {
-        'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5
-    };
-    // NEU: Monatsnamen für das Filter-Dropdown
-    const MONTH_NAMES = [
-        "Januar", "Februar", "März", "April", "Mai", "Juni", 
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
-    ];
-
-
-    /**
-     * Lädt alle Einträge aus dem localStorage.
-     * @returns {Array<object>} Die Liste der Einträge.
-     */
     function loadEntriesFromLocalStorage() {
         try {
             const data = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -487,80 +393,56 @@
         }
     }
 
-    /**
-     * Speichert die gesamte Liste von Einträgen im localStorage.
-     * @param {Array<object>} entries Die Liste der Einträge.
-     */
     function saveEntriesToLocalStorage(entries) {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(entries));
-            allStoredEntries = entries; // Globale Variable aktualisieren
+            allStoredEntries = entries; 
         } catch (e) {
             console.error("Fehler beim Speichern in localStorage:", e);
         }
     }
     
-    /**
-     * Wählt automatisch den passenden Zeitraum basierend auf der aktuellen Stunde aus.
-     */
     function preselectTimePeriod() {
+        document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+        selectedPeriod = null; 
         const currentHour = new Date().getHours();
         let periodToSelect = null;
-        
         for (const period of AUTO_PERIOD_MAP) {
-            // Die Endstunde ist exklusiv (z.B. 18:00 ist Mittag, bis 17:59).
             if (currentHour >= period.startHour && currentHour < period.endHour) {
                 periodToSelect = period.name;
                 break;
             }
         }
-        
         if (periodToSelect) {
             const btn = document.querySelector(`.period-button[data-period="${periodToSelect}"]`);
             if (btn) {
-                // Setze globale Variable
                 selectedPeriod = periodToSelect;
-                
-                // Füge die Klasse hinzu
                 btn.classList.add('selected-period');
             }
         }
     }
 
-
-    /**
-     * Startet das Laden der Historie und den initialen Wetterabruf.
-     */
     function setupApp() {
-        allStoredEntries = loadEntriesFromLocalStorage(); // Initial laden
-        preselectTimePeriod(); // NEU: Zeitperiode vorauswählen
-        renderSortedHistory(allStoredEntries);
+        allStoredEntries = loadEntriesFromLocalStorage(); 
+        preselectTimePeriod(); 
+        renderSortedHistory(allStoredEntries, true); 
         fetchWeather(entryDateEl.value); 
     }
     
-    /**
-     * Ruft den Standort des Benutzers ab und fragt die Wetterdaten ab, 
-     * falls das Zieldatum außerhalb des aktuell geladenen 14-Tage-Fensters liegt.
-     */
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
-
-        // 1. Prüfen, ob die aktuell geladenen Daten das Zieldatum bereits abdecken.
         if (lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
             const targetTime = new Date(targetDateStr).getTime();
             const loadedStartTime = new Date(lastFetchedDate).getTime();
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
-
             if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
                 weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
                 return;
             }
         }
         
-        // 2. Wetterdaten abrufen, da sie entweder fehlen oder das Datum nicht abdecken
         weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
-
         if (!navigator.geolocation) {
             weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
             return;
@@ -568,19 +450,13 @@
 
         try {
             const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                    timeout: 10000,
-                    enableHighAccuracy: false
-                });
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false });
             });
 
             userLatitude = position.coords.latitude; 
             userLongitude = position.coords.longitude; 
-            
             weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
-            
             await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
-
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
             if (error.code === error.PERMISSION_DENIED) {
@@ -591,36 +467,25 @@
         }
     }
 
-    /**
-     * Ruft die Wetterdaten (stündliche Vorhersage) von Open-Meteo ab.
-     */
     async function fetchWeatherData(lat, lon, startDateStr) {
-        
         const startDate = new Date(startDateStr);
         const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 14); // 14 Tage ab dem Zieldatum
-        
+        endDate.setDate(startDate.getDate() + 14); 
         const startDateFormatted = startDateStr;
         const endDateFormatted = endDate.toISOString().split('T')[0];
-        
         const url = `${WEATHER_API_BASE_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&timezone=auto&start_date=${startDateFormatted}&end_date=${endDateFormatted}`; 
         
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`API Fehler: ${response.status}`);
-            
             const data = await response.json();
-            
             const hourlyData = data.hourly.time.map((timestamp, index) => ({
                 timestamp: new Date(timestamp).getTime(), 
                 temp: data.hourly.temperature_2m[index],
                 wmoCode: data.hourly.weathercode[index] 
             }));
-            
-            currentTemperatureData = hourlyData; // Wetterdaten speichern
-            lastFetchedDate = startDateStr; // Das Startdatum des geladenen Fensters speichern
-            
-            // Aktuelle Temperatur ermitteln und anzeigen (nächstliegender Messpunkt)
+            currentTemperatureData = hourlyData; 
+            lastFetchedDate = startDateStr; 
             let currentTempDisplay = null;
             let minDiff = Infinity;
             const nowMs = new Date().getTime();
@@ -637,45 +502,31 @@
             if (currentTempDisplay !== null) {
                 weatherMessage += ` Aktuelle Temperatur: ${currentTempDisplay.toFixed(1)}°C`;
             }
-
             weatherStatusEl.textContent = weatherMessage;
-
         } catch (error) {
             console.error("Fehler beim Abrufen der Wetterdaten:", error);
             weatherStatusEl.textContent = '❌ Fehler beim Laden der Wetterdaten. Eintrag ohne Temperatur/Wetterzustand.';
         }
     }
 
-    /**
-     * Ermittelt die Temperatur und den Wetterzustand für den ausgewählten Zeitraum.
-     */
     function getWeatherDataForPeriod(period, selectedDateStr) { 
-        
         if (!selectedDateStr || !currentTemperatureData || currentTemperatureData.length === 0) {
              return { temperature: null, weatherCondition: null }; 
         }
-
         const targetHour = PERIOD_TIME_MAP[period];
         if (!targetHour) return { temperature: null, weatherCondition: null };
-
         const [year, month, day] = selectedDateStr.split('-').map(Number);
-        
         let targetTime = new Date(year, month - 1, day, targetHour, 0, 0); 
-
         const targetTimestampMs = targetTime.getTime(); 
-        
         let closestEntry = null;
         let minDiff = Infinity;
-        
         currentTemperatureData.forEach(entry => {
             const diff = Math.abs(entry.timestamp - targetTimestampMs); 
-            
             if (diff < minDiff && diff < (12 * 60 * 60 * 1000)) { 
                 minDiff = diff;
                 closestEntry = entry;
             }
         });
-
         if (closestEntry) {
             const temp = parseFloat(closestEntry.temp.toFixed(1));
             const condition = WMO_CODE_MAP[closestEntry.wmoCode] || 'Unbekannt'; 
@@ -686,56 +537,25 @@
         }
     }
 
-    /**
-     * Aktiviert/Deaktiviert den Speichern-Button.
-     */
     function checkFormValidity() {
         const selectedDate = entryDateEl.value; 
         saveButton.disabled = !(selectedDate && selectedPeriod && selectedMood && selectedPain !== null); 
         saveButton.textContent = saveButton.disabled ? 'Bitte Datum, Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
     }
 
-    /**
-     * Zeigt das Hilfe-Modal an.
-     */
-    function showHelpModal() {
-        helpModal.classList.add('modal-show');
-    }
-
-    /**
-     * Versteckt das Hilfe-Modal.
-     */
-    function closeHelpModal() {
-        helpModal.classList.remove('modal-show');
-    }
+    function showHelpModal() { helpModal.classList.add('modal-show'); }
+    function closeHelpModal() { helpModal.classList.remove('modal-show'); }
     
-    /**
-     * Exportiert das Diagramm als PNG-Bild oder öffnet es zum Drucken.
-     * @param {string} chartId Die ID des Canvas-Elements.
-     */
     function exportChart(chartId) {
         const chartCanvas = document.getElementById(chartId);
-        if (!chartCanvas) {
-            alert("Das Diagramm existiert nicht.");
-            return;
-        }
-        
-        // Prüfen, ob eine Chart.js Instanz für diesen Canvas existiert.
+        if (!chartCanvas) { alert("Das Diagramm existiert nicht."); return; }
         const chartInstance = Chart.getChart(chartCanvas);
-        if (!chartInstance) {
-             alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält.");
-             return;
-        }
-
-        // Erstellt ein Bild der aktuellen Canvas
+        if (!chartInstance) { alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält."); return; }
         const imageURL = chartCanvas.toDataURL('image/png');
-
-        // Optional: Den Benutzer fragen, ob er speichern oder drucken möchte
         const action = prompt("Möchten Sie das Diagramm speichern (S) oder drucken (D)?", "S");
-        const filenamePrefix = chartId.includes('moodChart') ? 'stimmungs_chart' : 'schmerzregionen_chart';
+        const filenamePrefix = chartId.includes('moodChart') ? 'stimmungs_chart' : (chartId.includes('vitalChart') ? 'vital_chart' : 'schmerzregionen_chart');
 
         if (action && action.toUpperCase() === 'S') {
-            // Speichern als PNG
             const a = document.createElement('a');
             a.href = imageURL;
             a.download = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.png`;
@@ -743,7 +563,6 @@
             a.click();
             document.body.removeChild(a);
         } else if (action && action.toUpperCase() === 'D') {
-            // Drucken
             const printWindow = window.open('');
             printWindow.document.write('<img src="' + imageURL + '" style="max-width: 100%;">');
             printWindow.document.close();
@@ -752,13 +571,7 @@
         }
     }
 
-
-    /**
-     * Setzt die Event Listener für das Formular und die Verwaltung.
-     */
     function setupFormListeners() {
-        
-        // Ruft Wetterdaten ab, wenn sich das Datum ändert
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
             fetchWeather(entryDateEl.value); 
@@ -771,8 +584,6 @@
                 selectedPeriod = btn.dataset.period;
                 btn.classList.add('selected-period');
                 checkFormValidity();
-                
-                // Wenn Zeitraum gewählt, prüfen wir, ob die Daten aktuell sind
                 if (selectedPeriod && entryDateEl.value) {
                     fetchWeather(entryDateEl.value); 
                 }
@@ -802,43 +613,31 @@
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
         exportButton.addEventListener('click', exportData); 
-        exportChartButton.addEventListener('click', () => exportChart('moodChart')); // NEU: Chart Export
-        exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); // NEU: Pain Chart Export
+        exportChartButton.addEventListener('click', () => exportChart('moodChart')); 
+        exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); 
+        exportVitalChartButton.addEventListener('click', () => exportChart('vitalChart'));
         
-        jsonFileInput.addEventListener('change', () => {
-            importButton.disabled = !jsonFileInput.files.length;
-        });
+        jsonFileInput.addEventListener('change', () => { importButton.disabled = !jsonFileInput.files.length; });
         importButton.addEventListener('click', importData);
         
-        // NEU: Jahr-Filter Listener
         yearFilterEl.addEventListener('change', () => {
             populateMonthFilter(yearFilterEl.value);
             filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
         });
         
-        // NEU: Monat-Filter Listener
         monthFilterEl.addEventListener('change', () => {
             filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
         });
 
-        
-        // HILFE MODAL LISTENERS
         helpButton.addEventListener('click', showHelpModal);
         closeModalButton.addEventListener('click', closeHelpModal);
         helpModal.addEventListener('click', (e) => {
-            // Schließe das Modal, wenn außerhalb des Inhalts geklickt wird
-            if (e.target === helpModal) {
-                closeHelpModal();
-            }
+            if (e.target === helpModal) { closeHelpModal(); }
         });
         
         checkFormValidity();
     }
 
-    /**
-     * Sammelt die ausgewählten Schmerzregionen aus den Checkboxes.
-     * @returns {Array<string>} Array von Region-Codes (z.B. ['oben', 'mitte']).
-     */
     function getSelectedPainRegions() {
         const selectedRegions = [];
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
@@ -847,9 +646,11 @@
         return selectedRegions;
     }
 
-    /**
-     * Speichert den aktuellen Stimmungseintrag in localStorage.
-     */
+    function getNumericValue(element) {
+        const value = element.value.trim();
+        return value === '' ? null : parseFloat(value);
+    }
+
     function saveEntry() {
         const entryDate = entryDateEl.value; 
         if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
@@ -863,9 +664,8 @@
         statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
 
         const docId = `${entryDate}_${selectedPeriod}`; 
-        
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
-        const painRegions = getSelectedPainRegions(); // NEU: Schmerzregionen abrufen
+        const painRegions = getSelectedPainRegions(); 
 
         const newEntry = {
             id: docId, 
@@ -873,7 +673,12 @@
             timePeriod: selectedPeriod,
             mood: selectedMood,
             pain: selectedPain, 
-            schmerzRegionen: painRegions, // NEU: Speichern des Regionen-Arrays
+            schmerzRegionen: painRegions, 
+            puls: getNumericValue(pulsEl), 
+            gewicht: getNumericValue(gewichtEl),
+            blutzucker: getNumericValue(blutzuckerEl),
+            blutdruckSys: getNumericValue(blutdruckSysEl),
+            blutdruckDia: getNumericValue(blutdruckDiaEl),
             note: noteEl.value.trim(),
             temperature: weather.temperature, 
             weatherCondition: weather.weatherCondition, 
@@ -889,35 +694,32 @@
 
         try {
             saveEntriesToLocalStorage(allStoredEntries);
-
             statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
             
-            // NEU: Filter aktualisieren und Historie neu rendern
-            populateYearFilter(allStoredEntries);
-            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
-            
-            // NEU: Schmerzregionen-Chart aktualisieren
-            renderPainRegionChart(allStoredEntries);
+            populateYearFilter(allStoredEntries); 
+            if (typeof renderMoodChart !== 'undefined') { renderMoodChart(allStoredEntries); }
+            if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(allStoredEntries); }
+            if (typeof renderVitalChart !== 'undefined') { renderVitalChart(allStoredEntries); }
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value); 
 
-            // Formular zurücksetzen
             setTimeout(() => {
                 entryDateEl.value = new Date().toISOString().split('T')[0]; 
                 noteEl.value = '';
                 selectedPeriod = null;
                 selectedMood = null;
                 selectedPain = null; 
+                pulsEl.value = '';
+                gewichtEl.value = '';
+                blutzuckerEl.value = '';
+                blutdruckSysEl.value = '';
+                blutdruckDiaEl.value = '';
                 document.querySelectorAll('.period-button, .mood-icon, .pain-button').forEach(el => el.classList.remove('selected-period', 'selected-mood', 'selected-pain')); 
-                
-                // NEU: Schmerzregionen Checkboxes zurücksetzen
                 painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-
                 checkFormValidity();
                 statusMessageEl.textContent = '';
-                
-                // Wetterstatus zurücksetzen und aktualisieren
                 fetchWeather(entryDateEl.value); 
-                preselectTimePeriod(); // NEU: Zeitperiode wieder vorauswählen
+                preselectTimePeriod(); 
             }, 1500);
 
         } catch (error) {
@@ -929,148 +731,117 @@
         }
     }
 
-
-    /**
-     * Lädt die Historie aus localStorage und startet das Rendering.
-     */
     function loadHistoryAndStartListening() {
-        // allStoredEntries wird bereits in setupApp geladen
-        renderSortedHistory(allStoredEntries);
+        renderSortedHistory(allStoredEntries, true);
     }
     
-    /**
-     * Füllt das Jahr-Dropdown-Menü und aktualisiert den Monatsfilter.
-     * @param {Array<object>} entries Alle Stimmungseinträge.
-     */
     function populateYearFilter(entries) {
-        // 1. Alle eindeutigen Jahre sammeln
         const uniqueYears = Array.from(new Set(entries.map(entry => entry.date.substring(0, 4))));
-        
-        // 2. Sortieren (Neuestes zuerst)
         uniqueYears.sort().reverse();
-        
-        // 3. Dropdown neu füllen
         const currentValue = yearFilterEl.value;
         yearFilterEl.innerHTML = '<option value="all">Alle Jahre</option>';
-        
         uniqueYears.forEach(year => {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year; 
             yearFilterEl.appendChild(option);
         });
-        
-        // Den vorherigen Wert wiederherstellen, falls vorhanden
         if (uniqueYears.includes(currentValue) || currentValue === 'all') {
              yearFilterEl.value = currentValue;
         }
-        
-        // Monatsfilter initialisieren
         populateMonthFilter(yearFilterEl.value);
     }
     
-    /**
-     * Füllt das Monat-Dropdown-Menü basierend auf dem ausgewählten Jahr.
-     * @param {string} selectedYear Das aktuell ausgewählte Jahr oder 'all'.
-     */
     function populateMonthFilter(selectedYear) {
         monthFilterEl.innerHTML = '<option value="all">Alle Monate</option>';
-        
         if (selectedYear === 'all') {
             monthFilterEl.disabled = true;
             return;
         }
-        
         monthFilterEl.disabled = false;
-        
-        // Eindeutige Monatszahlen (01-12) für das ausgewählte Jahr sammeln
         const uniqueMonths = Array.from(new Set(
             allStoredEntries
                 .filter(entry => entry.date.startsWith(selectedYear))
-                .map(entry => entry.date.substring(5, 7)) // Extrahiert 'MM'
+                .map(entry => entry.date.substring(5, 7))
         ));
-        
-        // Sortieren (aktuellster Monat zuerst)
         uniqueMonths.sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
 
         uniqueMonths.forEach(monthStr => {
-            const monthIndex = parseInt(monthStr, 10) - 1; // '01' -> Index 0
+            const monthIndex = parseInt(monthStr, 10) - 1; 
             const monthName = MONTH_NAMES[monthIndex];
-            
             const option = document.createElement('option');
             option.value = monthStr;
             option.textContent = monthName + ' (' + monthStr + ')'; 
             monthFilterEl.appendChild(option);
         });
-        
-        // Setze den Monat auf 'all', falls der vorherige Wert nicht mehr gültig ist
         if (!uniqueMonths.includes(monthFilterEl.value)) {
             monthFilterEl.value = 'all';
         }
     }
 
-
-    /**
-     * Filtert die Historie basierend auf dem ausgewählten Jahr und Monat.
-     * @param {string} selectedYear Das ausgewählte Jahr ('YYYY' oder 'all').
-     * @param {string} selectedMonth Der ausgewählte Monat ('MM' oder 'all').
-     */
     function filterHistoryByYearMonth(selectedYear, selectedMonth) {
         let filteredEntries = allStoredEntries;
-        
         if (selectedYear !== 'all') {
             filteredEntries = filteredEntries.filter(entry => 
                 entry.date.startsWith(selectedYear)
             );
         }
-        
         if (selectedMonth !== 'all') {
             filteredEntries = filteredEntries.filter(entry => 
                 entry.date.substring(5, 7) === selectedMonth
             );
         }
-        
-        // Rufe die Statistik-Funktion für die gefilterten Daten auf
         renderStats(filteredEntries);
-        
-        // Wir übergeben die gefilterten Einträge. Das Chart soll NICHT aktualisiert werden (es zeigt immer den Gesamtverlauf).
         renderSortedHistory(filteredEntries, false);
     }
     
-    /**
-     * Rendert die Monats-Statistiken basierend auf den gefilterten Einträgen.
-     * @param {Array<object>} entries Die gefilterten Einträge.
-     */
     function renderStats(entries) {
         statsContainerEl.innerHTML = '';
-        
         if (entries.length === 0) {
             statsContainerEl.classList.add('hidden');
             return;
         }
-        
         statsContainerEl.classList.remove('hidden');
 
         let moodSum = 0;
         let painSum = 0;
         let tempSum = 0;
         let tempCount = 0;
+        let pulsSum = 0;
+        let pulsCount = 0;
+        let gewichtSum = 0;
+        let gewichtCount = 0;
+        let blutzuckerSum = 0;
+        let blutzuckerCount = 0;
 
         entries.forEach(entry => {
             moodSum += window.MOOD_VALUES[entry.mood] || 3;
             painSum += entry.pain !== undefined && entry.pain !== null ? entry.pain : 0;
-            
             if (entry.temperature !== undefined && entry.temperature !== null) {
                 tempSum += entry.temperature;
                 tempCount++;
+            }
+            if (entry.puls !== undefined && entry.puls !== null) {
+                pulsSum += entry.puls;
+                pulsCount++;
+            }
+            if (entry.gewicht !== undefined && entry.gewicht !== null) {
+                gewichtSum += entry.gewicht;
+                gewichtCount++;
+            }
+            if (entry.blutzucker !== undefined && entry.blutzucker !== null) {
+                blutzuckerSum += entry.blutzucker;
+                blutzuckerCount++;
             }
         });
 
         const avgMood = (moodSum / entries.length).toFixed(2);
         const avgPain = (painSum / entries.length).toFixed(1);
         const avgTemp = tempCount > 0 ? (tempSum / tempCount).toFixed(1) : 'N/A';
+        const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(0) : 'N/A';
+        const avgGewicht = gewichtCount > 0 ? (gewichtSum / gewichtCount).toFixed(1) : 'N/A';
+        const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(0) : 'N/A';
 
-        // Hilfsfunktion zur Erstellung der Statistikkarte
         function createStatCard(title, value, unit, color) {
             const card = document.createElement('div');
             card.className = 'stat-card';
@@ -1081,77 +852,42 @@
             return card;
         }
 
-        // 1. Stimmung
-        const moodCard = createStatCard(
-            'Ø Stimmung (1-5)', 
-            avgMood, 
-            '', 
-            '#4f46e5' // Indigo
-        );
+        const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', '#4f46e5' );
+        const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', '#9333ea' );
+        const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', '#ef4444' );
+        const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', '#10b981' );
+        const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', '#f59e0b' );
+        const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', '#3b82f6' );
 
-        // 2. Schmerz
-        const painCard = createStatCard(
-            'Ø Schmerz (0-10)', 
-            avgPain, 
-            '', 
-            '#9333ea' // Purple
-        );
-
-        // 3. Temperatur
-        const tempCard = createStatCard(
-            'Ø Temperatur', 
-            avgTemp, 
-            avgTemp !== 'N/A' ? '°C' : '', 
-            '#ef4444' // Red
-        );
-
+        statsContainerEl.innerHTML = ''; 
+        statsContainerEl.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6'; 
         statsContainerEl.appendChild(moodCard);
         statsContainerEl.appendChild(painCard);
         statsContainerEl.appendChild(tempCard);
+        statsContainerEl.appendChild(pulsCard);
+        statsContainerEl.appendChild(gewichtCard);
+        statsContainerEl.appendChild(blutzuckerCard);
     }
 
-
-    /**
-     * Sortiert die Einträge und ruft das Rendering auf.
-     * @param {Array<object>} entries Die Einträge, die sortiert werden sollen.
-     * @param {boolean} updateChartFilter Ob das Chart und die Filter ebenfalls aktualisiert werden sollen (nur bei app-Start/Import/Löschen true).
-     */
     function renderSortedHistory(entries, updateChartFilter = true) {
-         // Sortierung: Neuestes Datum zuerst, dann nach Tageszeit (Nacht -> Abend)
         const sortedEntries = entries.sort((a, b) => {
             if (a.date < b.date) return 1;
             if (a.date > b.date) return -1;
-            
             const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
             return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
         });
 
-        // Beim ersten Laden, das Chart und die Filter füllen/aktualisieren
         if (updateChartFilter) {
             populateYearFilter(allStoredEntries);
-            if (typeof renderMoodChart !== 'undefined') {
-                 renderMoodChart(allStoredEntries); // Das Linien-Chart nutzt immer ALLE Daten
-            }
-            if (typeof renderPainRegionChart !== 'undefined') {
-                 renderPainRegionChart(allStoredEntries); // NEU: Das Pain-Chart nutzt immer ALLE Daten
-            }
+            if (typeof renderMoodChart !== 'undefined') { renderMoodChart(allStoredEntries); }
+            if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(allStoredEntries); }
+            if (typeof renderVitalChart !== 'undefined') { renderVitalChart(allStoredEntries); }
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value); 
+            return; 
         }
-
         renderHistory(sortedEntries);
-        // Stelle sicher, dass die Statistiken auch beim ersten Laden/Sortieren gerendert werden
-        // Wenn `entries` die gefilterten sind, dann sollen sie hier gerendert werden.
-        if (!updateChartFilter) {
-            renderStats(entries);
-        } else {
-             // Beim Start oder nach dem Reset/Import müssen die Statistiken der aktuellen Filteransicht entsprechen
-             filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
-        }
     }
     
-    /**
-     * Rendert die Historie in HTML.
-     * @param {Array<object>} entries Die sortierten Stimmungseinträge.
-     */
     function renderHistory(entries) {
         loadingHistoryEl.classList.add('hidden');
         historyContainerEl.innerHTML = '';
@@ -1160,21 +896,16 @@
             noEntriesEl.classList.remove('hidden');
             return;
         }
-
         noEntriesEl.classList.add('hidden');
 
-        // Einträge nach Datum gruppieren
         const groupedByDate = entries.reduce((acc, entry) => {
             const dateKey = entry.date;
-            if (!acc[dateKey]) {
-                acc[dateKey] = [];
-            }
+            if (!acc[dateKey]) { acc[dateKey] = []; }
             entry.timestamp = entry.timestamp || new Date(entry.date).getTime(); 
             acc[dateKey].push(entry);
             return acc;
         }, {});
 
-        // HTML-Elemente für die Historie erstellen
         const sortedDates = Object.keys(groupedByDate).sort().reverse();
 
         sortedDates.forEach(date => {
@@ -1191,11 +922,9 @@
                 entriesList.innerHTML += createEntryHtml(entry);
             });
             dateGroup.appendChild(entriesList);
-
             historyContainerEl.appendChild(dateGroup);
         });
         
-        // NEU: Event Listener für die Löschen-Buttons hinzufügen, sobald die Historie gerendert ist
         document.querySelectorAll('.delete-entry-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 const entryId = e.currentTarget.dataset.id;
@@ -1204,24 +933,29 @@
         });
     }
 
-
     function createEntryHtml(entry) {
         const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
         const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
-        
         const painDisplay = entry.pain !== undefined && entry.pain !== null 
                              ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
                              : '';
-        
-        // NEU: Schmerzregionen anzeigen
         const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
                              ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
                              : '';
+        
+        let vitalData = [];
+        if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
+        if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
+        if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
+        if (entry.blutdruckSys !== undefined && entry.blutdruckDia !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== null) {
+             vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
+        }
+        const vitalLine = vitalData.length > 0 
+                            ? `<p class="text-xs text-yellow-700 font-medium mt-1">${vitalData.join(' · ')}</p>` 
+                            : '';
 
         let weatherLine = '';
-        if (entry.temperature !== undefined && entry.temperature !== null) {
-            weatherLine += `${entry.temperature}°C`;
-        }
+        if (entry.temperature !== undefined && entry.temperature !== null) { weatherLine += `${entry.temperature}°C`; }
         if (entry.weatherCondition) {
              if (weatherLine) weatherLine += ' · ';
              weatherLine += entry.weatherCondition;
@@ -1229,13 +963,14 @@
 
         return `
             <div class="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-100 last:border-b-0">
-                <div class="flex items-center space-x-3">
+                <div class="flex items-start space-x-3">
                     <span class="text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
-                    <span class="text-3xl">${moodEmoji}</span>
-                    <div class="text-sm">
+                    <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
+                    <div class="text-sm flex-grow">
                         <p class="font-semibold text-gray-700 flex items-center">${moodName}${painDisplay}${painRegions}</p>
+                        ${vitalLine}
                         ${entry.note || weatherLine ? 
-                            `<p class="text-gray-500 italic text-xs">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
+                            `<p class="text-gray-500 italic text-xs mt-1">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
                         : ''}
                     </div>
                 </div>
@@ -1246,54 +981,31 @@
         `;
     }
 
-    /**
-     * Löscht einen einzelnen Eintrag anhand seiner ID.
-     * @param {string} id Die eindeutige ID des Eintrags (Datum_Tageszeit).
-     */
     function deleteEntry(id) {
-        if (!confirm(`Sicher, dass Sie diesen Eintrag (ID: ${id}) löschen möchten?`)) {
-            return;
-        }
-
+        if (!confirm(`Sicher, dass Sie diesen Eintrag (ID: ${id}) löschen möchten?`)) { return; }
         const initialLength = allStoredEntries.length;
-        
-        // Eintrag aus der Liste entfernen
         allStoredEntries = allStoredEntries.filter(entry => entry.id !== id);
-        
         if (allStoredEntries.length < initialLength) {
             saveEntriesToLocalStorage(allStoredEntries);
-            
-            // Historie neu rendern und Chart/Filter aktualisieren
             renderSortedHistory(allStoredEntries, true);
         } else {
             alert("Fehler: Eintrag nicht gefunden.");
         }
     }
 
-    /**
-     * Löscht alle gespeicherten Daten aus dem localStorage.
-     */
     function resetData() {
-        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) {
-            return;
-        }
-
+        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) { return; }
         resetButton.disabled = true;
         resetStatusEl.textContent = 'Lösche alle Daten...';
         resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
-
         try {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
-            allStoredEntries = []; // Globale Variable leeren
-            
+            allStoredEntries = []; 
             resetStatusEl.textContent = `Erfolgreich alle Einträge gelöscht!`;
             resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-            
-            // UI neu rendern und Filter/Chart zurücksetzen
             yearFilterEl.value = 'all';
             monthFilterEl.value = 'all';
             renderSortedHistory([], true); 
-
         } catch (error) {
             console.error("Fehler beim Löschen der Einträge:", error);
             resetStatusEl.textContent = 'Fehler beim Löschen.';
@@ -1304,24 +1016,14 @@
         }
     }
     
-    /**
-     * Exportiert alle gespeicherten Daten als JSON-Datei.
-     */
     function exportData() {
         const allEntries = allStoredEntries;
-        
-        if (allEntries.length === 0) {
-            alert("Es sind keine Einträge zum Exportieren vorhanden!");
-            return;
-        }
-
+        if (allEntries.length === 0) { alert("Es sind keine Einträge zum Exportieren vorhanden!"); return; }
         const dataStr = JSON.stringify(allEntries, null, 2); 
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        
         const now = new Date();
         const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
-
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
@@ -1329,48 +1031,29 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
         alert(`Daten erfolgreich als ${filename} exportiert.`);
     }
 
-    /**
-     * Liest die JSON-Datei und führt die Daten mit localStorage zusammen.
-     */
     function importData() {
         const file = jsonFileInput.files[0];
-        if (!file) {
-            alert("Bitte wählen Sie eine JSON-Datei aus.");
-            return;
-        }
-
+        if (!file) { alert("Bitte wählen Sie eine JSON-Datei aus."); return; }
         importButton.disabled = true;
         importStatusEl.textContent = 'Importiere...';
         importStatusEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
-
         const reader = new FileReader();
 
         reader.onload = function(e) {
             try {
                 const importedEntries = JSON.parse(e.target.result);
-
-                if (!Array.isArray(importedEntries)) {
-                    throw new Error("Die Datei ist kein gültiges Array von Einträgen. Erwartet wurde ein JSON-Array ([...]).");
-                }
-
+                if (!Array.isArray(importedEntries)) { throw new Error("Die Datei ist kein gültiges Array von Einträgen. Erwartet wurde ein JSON-Array ([...])."); }
                 let entriesAdded = 0;
                 let entriesOverwritten = 0;
 
-                // Zusammenführen (Merge-Logik)
                 importedEntries.forEach(entry => {
-                    // Sicherstellen, dass die ID korrekt für den lokalen Speicher formatiert ist
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
-
-                    // NEU: Sicherstellen, dass `schmerzRegionen` ein Array ist, falls es fehlt
                     entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
-
                     const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
-
                     if (existingIndex > -1) {
                         allStoredEntries[existingIndex] = entry;
                         entriesOverwritten++;
@@ -1381,15 +1064,11 @@
                 });
 
                 saveEntriesToLocalStorage(allStoredEntries);
-                
-                // Historie neu rendern und Chart/Filter aktualisieren
                 yearFilterEl.value = 'all';
                 monthFilterEl.value = 'all';
                 renderSortedHistory(allStoredEntries, true);
-
                 importStatusEl.textContent = `Import erfolgreich! ${entriesAdded} neue Einträge hinzugefügt, ${entriesOverwritten} überschrieben.`;
                 importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-
             } catch (error) {
                 console.error("Fehler beim Importieren oder Parsen:", error);
                 importStatusEl.textContent = `Importfehler: ${error.message}`;
@@ -1409,7 +1088,6 @@
         reader.readAsText(file);
     }
 
-
     function formatDate(dateString) {
         try {
             const [year, month, day] = dateString.split('-').map(Number);
@@ -1422,7 +1100,6 @@
         }
     }
 
-    // Datumsformatierung für Chart (MUSS GLOBAL SEIN)
     window.formatDateShort = function(dateString) {
         try {
             const [year, month, day] = dateString.split('-').map(Number);
@@ -1435,97 +1112,58 @@
         }
     }
 
-    // ******************************************************
-    // CHART.JS LOGIK
-    // ******************************************************
-    
     let moodChartInstance = null;
     const chartStatusEl = document.getElementById('chart-status');
     const moodChartEl = document.getElementById('moodChart'); 
     const chartContainerEl = document.getElementById('chart-container'); 
-    
-    // NEU: Pain Region Chart Variablen
     let painRegionChartInstance = null;
     const painRegionChartEl = document.getElementById('painRegionChart');
     const painChartStatusEl = document.getElementById('pain-chart-status');
+    let vitalChartInstance = null;
+    const vitalChartEl = document.getElementById('vitalChart');
+    const vitalChartStatusEl = document.getElementById('vital-chart-status');
+    const vitalChartContainerEl = document.getElementById('vital-chart-container');
 
-    // --- TEMPERATUR-NORMALISIERUNGSKONSTANTEN ---
     const TEMP_MIN = -5;  
     const TEMP_MAX = 25;  
     const TEMP_RANGE = TEMP_MAX - TEMP_MIN; 
 
-    /**
-     * Skaliert eine Temperatur von [TEMP_MIN, TEMP_MAX] linear auf [0, 10].
-     */
     function normalizeTemperature(temp) {
         if (temp === null || temp === undefined) return null;
         if (TEMP_RANGE === 0) return 5; 
-
         let clampedTemp = Math.max(TEMP_MIN, Math.min(TEMP_MAX, temp)); 
-        
         return ((clampedTemp - TEMP_MIN) / TEMP_RANGE) * 10;
     }
 
-    /**
-     * Re-transformiert einen normalisierten Wert (0-10) zurück in die tatsächliche Temperatur.
-     */
     function denormalizeTemperature(normalizedValue) {
         if (normalizedValue === null || normalizedValue === undefined) return null;
         return (normalizedValue / 10 * TEMP_RANGE) + TEMP_MIN;
     }
 
-
-    /**
-     * Berechnet den durchschnittlichen Stimmungswert, Temperatur und SCHMERZ pro Tag und rendert das Liniendiagramm.
-     * @param {Array<object>} entries Alle Stimmungseinträge.
-     */
     function renderMoodChart(entries) {
-        if (typeof Chart === 'undefined') { 
-            console.error("Chart.js ist nicht geladen.");
-            return; 
-        }
-
+        if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
         if (moodChartInstance) { moodChartInstance.destroy(); }
         
-        // 1. Daten pro Tag gruppieren und Durchschnitt berechnen
-        // Das Chart nutzt immer ALLE Einträge (allStoredEntries), um den vollen Verlauf zu zeigen.
-        const dailyData = allStoredEntries.reduce((acc, entry) => {
+        const dataToUse = allStoredEntries; 
+        const dailyData = dataToUse.reduce((acc, entry) => {
             const dateKey = entry.date;
             const moodValue = window.MOOD_VALUES[entry.mood] || 3; 
             const tempValue = entry.temperature || null; 
             const painValue = entry.pain; 
             
-            if (!acc[dateKey]) {
-                acc[dateKey] = { 
-                    moodSum: 0, moodCount: 0, 
-                    tempSum: 0, tempCount: 0, 
-                    painSum: 0, painCount: 0, 
-                };
-            }
+            if (!acc[dateKey]) { acc[dateKey] = { moodSum: 0, moodCount: 0, tempSum: 0, tempCount: 0, painSum: 0, painCount: 0 }; }
             
             acc[dateKey].moodSum += moodValue;
             acc[dateKey].moodCount++;
-            
-            if (tempValue !== null) {
-                acc[dateKey].tempSum += tempValue;
-                acc[dateKey].tempCount++;
-            }
-            
-            if (painValue !== undefined && painValue !== null) {
-                acc[dateKey].painSum += painValue;
-                acc[dateKey].painCount++;
-            }
-            
+            if (tempValue !== null) { acc[dateKey].tempSum += tempValue; acc[dateKey].tempCount++; }
+            if (painValue !== undefined && painValue !== null) { acc[dateKey].painSum += painValue; acc[dateKey].painCount++; }
             return acc;
         }, {});
 
-        // 2. Daten für das Diagramm formatieren
         const sortedDates = Object.keys(dailyData).sort();
         const chartData = sortedDates.map(date => {
             const data = dailyData[date];
-
             const averageTempOriginal = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
-            
             return {
                 date: date,
                 averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
@@ -1535,7 +1173,6 @@
             };
         });
 
-        // Zeige Warnung, wenn zu wenige Daten vorhanden sind
         if (chartData.length < 2) {
             chartStatusEl.classList.remove('hidden');
             moodChartEl.style.width = '100%'; 
@@ -1545,13 +1182,10 @@
         chartStatusEl.classList.add('hidden');
         exportChartButton.disabled = false;
 
-
-        // Dynamische Breitenanpassung
         const numDataPoints = chartData.length;
         const PIXELS_PER_DATA_POINT = 60; 
         const calculatedWidth = numDataPoints * PIXELS_PER_DATA_POINT;
         let finalChartWidth = Math.max(400, calculatedWidth); 
-        
         moodChartEl.style.width = `${finalChartWidth}px`;
         moodChartEl.height = 256; 
 
@@ -1561,7 +1195,6 @@
         const tempDataNormalized = chartData.map(d => d.averageTempNormalized);
         const painData = chartData.map(d => d.averagePain); 
         
-        // 3. Diagramm rendern mit DREI Datasets und ZWEI Hauptachsen
         moodChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -1614,9 +1247,7 @@
                     mood: {
                         type: 'linear',
                         position: 'left',
-                        min: 1,
-                        max: 5,
-                        stepSize: 1,
+                        min: 1, max: 5, stepSize: 1,
                         title: { display: true, text: 'Stimmungswert' },
                         ticks: {
                             color: '#4f46e5',
@@ -1626,42 +1257,20 @@
                             }
                         }
                     },
-                    pain: { // Achse A: Schmerzskala (Lila Ticks)
-                        type: 'linear',
-                        position: 'right', 
-                        id: 'pain',
-                        min: 0, 
-                        max: 10, 
-                        stepSize: 1, 
-                        grid: {
-                            drawOnChartArea: false 
-                        },
-                        title: {
-                            display: false, 
-                        },
+                    pain: { 
+                        type: 'linear', position: 'right', id: 'pain', min: 0, max: 10, stepSize: 1, 
+                        grid: { drawOnChartArea: false },
+                        title: { display: false },
                         ticks: {
                             color: '#9333ea', 
-                            callback: function(value) {
-                                return value.toFixed(0); 
-                            },
+                            callback: function(value) { return value.toFixed(0); },
                             padding: 30, 
                         }
                     },
-                    temp_ref: { // Achse B: Temperatur-Referenz (Rote Ticks, überlappend)
-                        type: 'linear',
-                        position: 'right', 
-                        id: 'temp_ref',
-                        min: 0, 
-                        max: 10, 
-                        stepSize: 1, 
-                        grid: {
-                            drawOnChartArea: false,
-                            borderColor: 'transparent', 
-                            drawTicks: false 
-                        },
-                        title: { 
-                            display: false 
-                        },
+                    temp_ref: { 
+                        type: 'linear', position: 'right', id: 'temp_ref', min: 0, max: 10, stepSize: 1, 
+                        grid: { drawOnChartArea: false, borderColor: 'transparent', drawTicks: false },
+                        title: { display: false },
                         ticks: {
                             color: '#ef4444', 
                             callback: function(value) {
@@ -1671,9 +1280,7 @@
                             padding: 0, 
                         }
                     },
-                    x: {
-                        beginAtZero: false, 
-                    }
+                    x: { beginAtZero: false, }
                 },
                 plugins: {
                     legend: { display: false },
@@ -1681,10 +1288,7 @@
                         callbacks: {
                             label: function(context) {
                                 let label = context.dataset.label || '';
-
-                                if (label) {
-                                    label += ': ';
-                                }
+                                if (label) { label += ': '; }
                                 if (context.dataset.yAxisID === 'mood') {
                                     const value = context.parsed.y;
                                     const mood = Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === Math.round(value));
@@ -1694,7 +1298,6 @@
                                 } else if (context.dataset.label.includes('Temperatur')) { 
                                     const normalized = context.parsed.y;
                                     const actualTemp = denormalizeTemperature(normalized);
-                                    
                                     label = `Ø Temperatur: ${actualTemp.toFixed(1)}°C`; 
                                 }
                                 return label;
@@ -1704,27 +1307,151 @@
                 }
             }
         });
-        
         chartContainerEl.scrollLeft = chartContainerEl.scrollWidth;
     }
 
-    /**
-     * NEU: Berechnet die Häufigkeit der Schmerzregionen und rendert das Tortendiagramm.
-     * @param {Array<object>} entries Alle Stimmungseinträge.
-     */
-    function renderPainRegionChart(entries) {
-        if (typeof Chart === 'undefined') { 
-            console.error("Chart.js ist nicht geladen.");
-            return; 
-        }
+    function renderVitalChart(entries) {
+        if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
+        if (vitalChartInstance) { vitalChartInstance.destroy(); }
 
+        const dailyData = entries.reduce((acc, entry) => {
+            const dateKey = entry.date;
+            if (!acc[dateKey]) { 
+                acc[dateKey] = {
+                    pulsSum: 0, pulsCount: 0,
+                    gewichtSum: 0, gewichtCount: 0,
+                    blutzuckerSum: 0, blutzuckerCount: 0,
+                    blutdruckSysSum: 0, blutdruckSysCount: 0,
+                    blutdruckDiaSum: 0, blutdruckDiaCount: 0,
+                }; 
+            }
+            if (entry.puls !== null) { acc[dateKey].pulsSum += entry.puls; acc[dateKey].pulsCount++; }
+            if (entry.gewicht !== null) { acc[dateKey].gewichtSum += entry.gewicht; acc[dateKey].gewichtCount++; }
+            if (entry.blutzucker !== null) { acc[dateKey].blutzuckerSum += entry.blutzucker; acc[dateKey].blutzuckerCount++; }
+            if (entry.blutdruckSys !== null) { acc[dateKey].blutdruckSysSum += entry.blutdruckSys; acc[dateKey].blutdruckSysCount++; }
+            if (entry.blutdruckDia !== null) { acc[dateKey].blutdruckDiaSum += entry.blutdruckDia; acc[dateKey].blutdruckDiaCount++; }
+            return acc;
+        }, {});
+
+        const sortedDates = Object.keys(dailyData).sort();
+        const chartData = sortedDates.map(date => {
+            const data = dailyData[date];
+            return {
+                date: date,
+                puls: data.pulsCount > 0 ? data.pulsSum / data.pulsCount : null,
+                gewicht: data.gewichtCount > 0 ? data.gewichtSum / data.gewichtCount : null,
+                blutzucker: data.blutzuckerCount > 0 ? data.blutzuckerSum / data.blutzuckerCount : null,
+                blutdruckSys: data.blutdruckSysCount > 0 ? data.blutdruckSysSum / data.blutdruckSysCount : null,
+                blutdruckDia: data.blutdruckDiaCount > 0 ? data.blutdruckDiaSum / data.blutdruckDiaCount : null,
+            };
+        });
+
+        const hasVitalData = chartData.some(d => d.puls || d.gewicht || d.blutzucker || d.blutdruckSys || d.blutdruckDia);
+
+        if (!hasVitalData) {
+            vitalChartStatusEl.classList.remove('hidden');
+            vitalChartEl.style.width = '100%';
+            exportVitalChartButton.disabled = true;
+            return;
+        }
+        vitalChartStatusEl.classList.add('hidden');
+        exportVitalChartButton.disabled = false;
+
+        const numDataPoints = chartData.length;
+        const PIXELS_PER_DATA_POINT = 60; 
+        const calculatedWidth = numDataPoints * PIXELS_PER_DATA_POINT;
+        let finalChartWidth = Math.max(400, calculatedWidth); 
+        vitalChartEl.style.width = `${finalChartWidth}px`;
+        vitalChartEl.height = 256; 
+
+        const ctx = vitalChartEl.getContext('2d');
+        const labels = chartData.map(d => window.formatDateShort(d.date)); 
+
+        vitalChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Ø Puls (BPM)',
+                        data: chartData.map(d => d.puls),
+                        borderColor: '#10b981', 
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'puls', order: 1,
+                    },
+                    {
+                        label: 'Ø Gewicht (kg)',
+                        data: chartData.map(d => d.gewicht),
+                        borderColor: '#f59e0b', 
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'gewicht', order: 2,
+                    },
+                    {
+                        label: 'Ø Blutzucker (mg/dL)',
+                        data: chartData.map(d => d.blutzucker),
+                        borderColor: '#3b82f6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutzucker', order: 3,
+                    },
+                    {
+                        label: 'Ø Blutdruck Systolisch (mmHg)',
+                        data: chartData.map(d => d.blutdruckSys),
+                        borderColor: '#06b6d4', 
+                        backgroundColor: 'rgba(6, 182, 212, 0.2)',
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 4,
+                    },
+                    {
+                        label: 'Ø Blutdruck Diastolisch (mmHg)',
+                        data: chartData.map(d => d.blutdruckDia),
+                        borderColor: '#60a5fa', 
+                        backgroundColor: 'rgba(96, 165, 250, 0.2)',
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 5,
+                    }
+                ]
+            },
+            options: {
+                responsive: false, 
+                maintainAspectRatio: false, 
+                scales: {
+                    puls: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls (BPM)', color: '#10b981' }, ticks: { color: '#10b981', callback: (v) => v.toFixed(0) } },
+                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 100, title: { display: true, text: 'Gewicht (kg)', color: '#f59e0b' }, ticks: { color: '#f59e0b', callback: (v) => v.toFixed(1) } },
+                    blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: '#3b82f6' }, ticks: { color: '#3b82f6', callback: (v) => v.toFixed(0) } },
+                    blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: '#06b6d4' }, ticks: { color: '#06b6d4', callback: (v) => v.toFixed(0) } },
+                    x: { beginAtZero: false, }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed.y !== null) {
+                                    if (context.dataset.label.includes('Gewicht')) return label + `${context.parsed.y.toFixed(1)} kg`;
+                                    if (context.dataset.label.includes('Blutzucker')) return label + `${context.parsed.y.toFixed(0)} mg/dL`;
+                                    if (context.dataset.label.includes('Puls')) return label + `${context.parsed.y.toFixed(0)} BPM`;
+                                    if (context.dataset.label.includes('Blutdruck')) return label + `${context.parsed.y.toFixed(0)} mmHg`;
+                                }
+                                return label + 'N/A';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        vitalChartContainerEl.scrollLeft = vitalChartContainerEl.scrollWidth;
+    }
+
+    function renderPainRegionChart(entries) {
+        if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
         if (painRegionChartInstance) { painRegionChartInstance.destroy(); }
         
-        // 1. Häufigkeit der Regionen zählen
+        const dataToUse = allStoredEntries; 
         const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
         let totalCount = 0;
 
-        allStoredEntries.forEach(entry => {
+        dataToUse.forEach(entry => {
             if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
                 entry.schmerzRegionen.forEach(region => {
                     if (regionCounts.hasOwnProperty(region)) {
@@ -1735,7 +1462,6 @@
             }
         });
         
-        // Zeige Warnung, wenn keine Regionen erfasst wurden
         if (totalCount === 0) {
             painChartStatusEl.classList.remove('hidden');
             exportPainChartButton.disabled = true;
@@ -1747,11 +1473,10 @@
         const labels = Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]);
         const data = Object.values(regionCounts);
         
-        // Farben für das Chart (Lila Töne)
         const backgroundColors = [
-            'rgba(147, 51, 234, 0.8)', // Lila (Purple-600)
-            'rgba(192, 132, 252, 0.8)', // Hell-Lila (Purple-400)
-            'rgba(233, 213, 255, 0.8)' // Sehr helles Lila (Purple-200)
+            'rgba(147, 51, 234, 0.8)', 
+            'rgba(192, 132, 252, 0.8)', 
+            'rgba(233, 213, 255, 0.8)' 
         ];
         
         const borderColors = [
@@ -1779,16 +1504,12 @@
                 plugins: {
                     legend: {
                         position: 'right',
-                        labels: {
-                            boxWidth: 20
-                        }
+                        labels: { boxWidth: 20 }
                     },
                     title: {
                         display: true,
                         text: `Gesamte Schmerzereignisse: ${totalCount}`,
-                        font: {
-                            size: 16
-                        }
+                        font: { size: 16 }
                     },
                     tooltip: {
                         callbacks: {
@@ -1805,9 +1526,9 @@
         });
     }
 
-    // --- START DER ANWENDUNG ---
     setupFormListeners(); 
     setupApp(); 
 </script>
 </body>
 </html>
+
