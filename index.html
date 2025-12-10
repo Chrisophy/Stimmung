@@ -460,7 +460,12 @@
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
             if (error.code === error.PERMISSION_DENIED) {
-                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Versuche erneut nach Erlaubnis...';
+                 // HIER IST DIE WICHTIGE ÄNDERUNG: Erneutes Laden nach kurzer Verzögerung
+                 setTimeout(() => {
+                    fetchWeather(targetDateStr); 
+                 }, 1000); 
+
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
@@ -1531,4 +1536,3 @@
 </script>
 </body>
 </html>
-
