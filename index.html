@@ -59,7 +59,7 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            overflow-y: auto; 
+            overflow-y: auto; /* Behebt das Scroll-Problem */
         }
         .modal-content {
             background-color: white;
@@ -70,6 +70,9 @@
             margin: 2rem 0;
             box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
             position: relative;
+            /* BEHOBEN: Scroll-Fähigkeit für Inhalt */
+            max-height: 90vh; 
+            overflow-y: auto;
         }
         .modal-show {
             display: flex;
@@ -338,6 +341,15 @@
         'Mittag': 13, 
         'Abend': 19,    
     };
+    
+    // NEU: Zeiträume für die automatische Vorauswahl (von Stunde X bis Stunde Y-1)
+    const AUTO_PERIOD_MAP = [
+        { name: 'Nacht', startHour: 0, endHour: 5 },  // 00:00 bis 04:59
+        { name: 'Morgen', startHour: 5, endHour: 12 }, // 05:00 bis 11:59
+        { name: 'Mittag', startHour: 12, endHour: 18 }, // 12:00 bis 17:59
+        { name: 'Abend', startHour: 18, endHour: 24 } // 18:00 bis 23:59
+    ];
+
 
     // WMO Code Mapping 
     const WMO_CODE_MAP = {
@@ -435,12 +447,41 @@
             console.error("Fehler beim Speichern in localStorage:", e);
         }
     }
+    
+    /**
+     * Wählt automatisch den passenden Zeitraum basierend auf der aktuellen Stunde aus.
+     */
+    function preselectTimePeriod() {
+        const currentHour = new Date().getHours();
+        let periodToSelect = null;
+        
+        for (const period of AUTO_PERIOD_MAP) {
+            // Die Endstunde ist exklusiv (z.B. 18:00 ist Mittag, bis 17:59).
+            if (currentHour >= period.startHour && currentHour < period.endHour) {
+                periodToSelect = period.name;
+                break;
+            }
+        }
+        
+        if (periodToSelect) {
+            const btn = document.querySelector(`.period-button[data-period="${periodToSelect}"]`);
+            if (btn) {
+                // Setze globale Variable
+                selectedPeriod = periodToSelect;
+                
+                // Füge die Klasse hinzu
+                btn.classList.add('selected-period');
+            }
+        }
+    }
+
 
     /**
      * Startet das Laden der Historie und den initialen Wetterabruf.
      */
     function setupApp() {
         allStoredEntries = loadEntriesFromLocalStorage(); // Initial laden
+        preselectTimePeriod(); // NEU: Zeitperiode vorauswählen
         renderSortedHistory(allStoredEntries);
         fetchWeather(entryDateEl.value); 
     }
@@ -795,6 +836,7 @@
                 
                 // Wetterstatus zurücksetzen und aktualisieren
                 fetchWeather(entryDateEl.value); 
+                preselectTimePeriod(); // NEU: Zeitperiode wieder vorauswählen
             }, 1500);
 
         } catch (error) {
