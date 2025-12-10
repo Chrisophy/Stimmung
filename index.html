@@ -47,6 +47,64 @@
             color: white !important;
             border-color: #9333ea !important;
         }
+        /* Styles für das Modal-Fenster */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none; /* Standardmäßig versteckt */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow-y: auto; 
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 500px;
+            margin: 2rem 0;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        .modal-show {
+            display: flex;
+        }
+        /* Style für den Löschen-Button in der Historie */
+        .delete-entry-btn {
+            color: #f87171; /* Rot */
+            font-size: 1.5rem;
+            padding: 0.1rem 0.5rem;
+            line-height: 1;
+            transition: color 0.1s;
+        }
+        .delete-entry-btn:hover {
+            color: #ef4444; 
+            transform: scale(1.1);
+        }
+        /* Stil für die Statistikkarten */
+        .stat-card {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .stat-card-title {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            color: #6b7280; /* text-gray-500 */
+        }
+        .stat-card-value {
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: 700; /* font-bold */
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -99,7 +157,7 @@
             <p class="font-medium mb-2">3. Schmerzintensität (0-10):</p>
             <div id="pain-selection" class="flex flex-wrap justify-center sm:justify-between gap-1">
                 <script>
-                    // NEU: Startet bei 0
+                    // Startet bei 0
                     for(let i = 0; i <= 10; i++) { 
                         document.write(`
                             <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 0 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
@@ -132,24 +190,55 @@
             </p>
         </div>
         
+        <button id="export-chart-button" class="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-150 shadow-md mt-4">
+            🖼️ Diagramm speichern oder drucken
+        </button>
+
         <div class="mt-4 text-sm text-center flex justify-center flex-wrap gap-x-4 gap-y-2">
             <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">Stimmung (Links: 1-5)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-purple-100 text-purple-800 font-medium">Schmerz (Rechts: 0-10)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-red-100 text-red-800 font-medium">Temperatur (Rechts: -5°C bis 25°C)</p>
         </div>
     </section>
+    
+    <a href="#verwaltung-section" class="block w-full text-center bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm mb-4">
+        ⬇️ Zur Verwaltung
+    </a>
+    
     <section>
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Deine Historie</h2>
+        
+        <div class="mb-4 flex space-x-3">
+             <div class="flex-1">
+                <label for="year-filter" class="sr-only">Jahr wählen</label>
+                <select id="year-filter" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="all">Alle Jahre</option>
+                    </select>
+             </div>
+             <div class="flex-1">
+                <label for="month-filter" class="sr-only">Monat wählen</label>
+                <select id="month-filter" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <option value="all">Alle Monate</option>
+                    </select>
+             </div>
+        </div>
+        
+        <div id="stats-container" class="grid grid-cols-3 gap-2 mb-6">
+            </div>
         <p id="loading-history" class="text-center text-gray-500 mt-8">Lade Einträge...</p>
         <div id="history-container">
             </div>
         <p id="no-entries" class="text-center text-gray-500 py-10 hidden">Noch keine Einträge vorhanden. Starte jetzt!</p>
     </section>
     
-    <section class="mt-8 mb-4">
+    <section id="verwaltung-section" class="mt-8 mb-4">
         <h2 class="text-xl font-semibold mb-3 text-gray-700">Verwaltung</h2>
         
-        <div class="p-4 border border-blue-200 rounded-lg bg-blue-50 mb-4">
+        <button id="help-button" class="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition duration-150 shadow-md mt-3">
+            ❓ Hilfe / Funktionsübersicht
+        </button>
+        
+        <div class="p-4 border border-blue-200 rounded-lg bg-blue-50 mb-4 mt-3">
             <h3 class="font-bold text-blue-800 mb-2">Daten-Import (Wiederherstellung)</h3>
             <label for="json-file-input" class="block font-medium mb-2 text-sm text-blue-700">1. JSON-Datei wählen (Backup- oder Firebase-Export):</label>
             <input type="file" id="json-file-input" accept=".json" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
@@ -171,6 +260,56 @@
 
 </div> 
 
+<div id="help-modal" class="modal-overlay">
+    <div class="modal-content">
+        <button id="close-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold p-1">
+            &times;
+        </button>
+        <h2 class="text-2xl font-extrabold text-indigo-700 mb-4">Funktionsübersicht und Hilfe</h2>
+        <div id="help-content" class="space-y-4 text-gray-700">
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">🎯 Hauptfunktion</h3>
+            <p class="text-sm">
+                Die Hauptfunktion der App ist die einfache und schnelle Erfassung und Nachverfolgung Ihres emotionalen und körperlichen Zustands über den Tag und über die Zeit.
+            </p>
+
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">📝 Erweiterte Erfassung</h3>
+            <p class="font-semibold mt-2">Basis-Eintrag:</p>
+            <p class="text-sm">
+                Sie können zu einem wählbaren Datum und verschiedenen Tageszeiten (Morgen, Mittag, Abend, Nacht) Ihre aktuelle Stimmung (Skala: sehr gut bis sehr schlecht) sowie die Schmerzintensität (Skala 0-10) auswählen und optionale Notizen hinzufügen.
+            </p>
+            <p class="font-semibold mt-2">Automatische Ergänzung (Wetter):</p>
+            <p class="text-sm">
+                Durch einmaligen Geolocation-Zugriff erfasst die Anwendung zusätzlich automatisch die Temperatur und den Wetterzustand des jeweiligen Zeitpunkts, um eine umfassendere Dokumentation zu ermöglichen.
+            </p>
+
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">📊 Nachverfolgung & Analyse (Historie/Diagramme)</h3>
+            <p class="font-semibold mt-2">Chronologische Historie:</p>
+            <p class="text-sm">
+                Alle gespeicherten Einträge werden in einer sortierten, chronologischen Historie angezeigt.
+            </p>
+            <p class="font-semibold mt-2">Multivariate Analyse:</p>
+            <p class="text-sm">
+                Sie können den multivariaten Verlauf Ihrer Stimmung, der Schmerzintensität und der Temperatur in einem übersichtlichen Liniendiagramm analysieren, um tiefere Zusammenhänge, Muster und Trends in Ihrem Wohlbefinden zu erkennen.
+            </p>
+
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">💾 Datensicherheit & Verwaltung</h3>
+            <p class="font-semibold mt-2">Lokale Speicherung:</p>
+            <p class="text-sm">
+                Alle Ihre Einträge werden ausschließlich lokal in Ihrem Browser gespeichert (mithilfe des $\text{localStorage}$-Speichers). Dies bietet maximale Privatsphäre, da keine Daten an externe Server gesendet oder dort gespeichert werden.
+            </p>
+            <p class="font-semibold mt-2">Backup-Funktion:</p>
+            <p class="text-sm">
+                Zum Schutz vor Datenverlust (z. B. durch Browser-Updates, Löschen des Cache oder Gerätewechsel) können Sie jederzeit eine vollständige Sicherungskopie Ihrer Daten in Form einer Datei exportieren (Backup). Es wird empfohlen, dies regelmäßig zu tun.
+            </p>
+            <p class="font-semibold mt-2">Restore-Funktion:</p>
+            <p class="text-sm">
+                Über die Restore-Funktion können Sie eine zuvor erstellte Sicherungsdatei (Backup) importieren, um Ihre Einträge wiederherzustellen oder auf ein neues Gerät zu übertragen. Beim Wiederherstellen werden die vorhandenen lokalen Daten mit den importierten Daten zusammengeführt.
+            </p>
+        </div>
+    </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
 
 <script>
@@ -181,6 +320,9 @@
     let selectedPeriod = null;
     let selectedMood = null;
     let selectedPain = null; 
+    
+    // Globale Variable für alle Einträge
+    let allStoredEntries = []; 
 
     // --- WETTER VARIABLEN (Open-Meteo, kostenfrei) ---
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
@@ -225,7 +367,13 @@
     const resetButton = document.getElementById('reset-data'); 
     const resetStatusEl = document.getElementById('reset-status'); 
     const weatherStatusEl = document.getElementById('weather-status'); 
-    // const dailyWisdomEl = document.getElementById('daily-wisdom'); // ENTFERNT: Spruch-Element
+    
+    // NEU: JAHR/MONAT FILTER ELEMENTE
+    const yearFilterEl = document.getElementById('year-filter'); 
+    const monthFilterEl = document.getElementById('month-filter');
+    
+    // NEU: STATISTIK ELEMENT
+    const statsContainerEl = document.getElementById('stats-container');
 
     // NEUE IMPORT/EXPORT ELEMENTE
     const jsonFileInput = document.getElementById('json-file-input');
@@ -233,6 +381,14 @@
     const importStatusEl = document.getElementById('import-status');
     const exportButton = document.getElementById('export-data');
     
+    // NEU: CHART EXPORT BUTTON
+    const exportChartButton = document.getElementById('export-chart-button');
+
+    // HILFE MODAL ELEMENTE
+    const helpButton = document.getElementById('help-button');
+    const helpModal = document.getElementById('help-modal');
+    const closeModalButton = document.getElementById('close-modal');
+
     // Setze das Standarddatum (HEUTE)
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
 
@@ -246,6 +402,11 @@
     window.MOOD_VALUES = {
         'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5
     };
+    // NEU: Monatsnamen für das Filter-Dropdown
+    const MONTH_NAMES = [
+        "Januar", "Februar", "März", "April", "Mai", "Juni", 
+        "Juli", "August", "September", "Oktober", "November", "Dezember"
+    ];
 
 
     /**
@@ -269,27 +430,24 @@
     function saveEntriesToLocalStorage(entries) {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(entries));
+            allStoredEntries = entries; // Globale Variable aktualisieren
         } catch (e) {
             console.error("Fehler beim Speichern in localStorage:", e);
         }
     }
 
-    // Funktion getDailyQuote() ENTFERNT
-
     /**
      * Startet das Laden der Historie und den initialen Wetterabruf.
      */
     function setupApp() {
-        loadHistoryAndStartListening();
+        allStoredEntries = loadEntriesFromLocalStorage(); // Initial laden
+        renderSortedHistory(allStoredEntries);
         fetchWeather(entryDateEl.value); 
-        
-        // AUFRUF von dailyWisdomEl ENTFERNT
     }
     
     /**
      * Ruft den Standort des Benutzers ab und fragt die Wetterdaten ab, 
      * falls das Zieldatum außerhalb des aktuell geladenen 14-Tage-Fensters liegt.
-     * @param {string} targetDateStr Das Zieldatum im Format 'YYYY-MM-DD', für das die Daten benötigt werden.
      */
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
@@ -301,9 +459,7 @@
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
 
-            // Wenn das Zieldatum innerhalb des geladenen Fensters liegt, brechen wir ab.
             if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
-                // Wir setzen den Status immer, da der Nutzer das Datum manuell geändert haben könnte.
                 weatherStatusEl.textContent = '✅ Wetterdaten bereit.';
                 return;
             }
@@ -343,7 +499,7 @@
     }
 
     /**
-     * Ruft die Wetterdaten (stündliche Vorhersage) von Open-Meteo ab, startend am Zieldatum.
+     * Ruft die Wetterdaten (stündliche Vorhersage) von Open-Meteo ab.
      */
     async function fetchWeatherData(lat, lon, startDateStr) {
         
@@ -378,7 +534,6 @@
 
             hourlyData.forEach(entry => {
                 const diff = Math.abs(entry.timestamp - nowMs);
-                // Nur zukünftige oder sehr nahe vergangene Daten
                 if (diff < minDiff && entry.timestamp > (nowMs - 3 * 60 * 60 * 1000)) { 
                     minDiff = diff;
                     currentTempDisplay = entry.temp;
@@ -447,6 +602,56 @@
         saveButton.textContent = saveButton.disabled ? 'Bitte Datum, Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
     }
 
+    /**
+     * Zeigt das Hilfe-Modal an.
+     */
+    function showHelpModal() {
+        helpModal.classList.add('modal-show');
+    }
+
+    /**
+     * Versteckt das Hilfe-Modal.
+     */
+    function closeHelpModal() {
+        helpModal.classList.remove('modal-show');
+    }
+    
+    /**
+     * Exportiert das Diagramm als PNG-Bild oder öffnet es zum Drucken.
+     */
+    function exportChart() {
+        if (!moodChartInstance) {
+            alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält.");
+            return;
+        }
+
+        const chartCanvas = document.getElementById('moodChart');
+        if (!chartCanvas) return;
+
+        // Erstellt ein Bild der aktuellen Canvas
+        const imageURL = chartCanvas.toDataURL('image/png');
+
+        // Optional: Den Benutzer fragen, ob er speichern oder drucken möchte
+        const action = prompt("Möchten Sie das Diagramm speichern (S) oder drucken (D)?", "S");
+
+        if (action && action.toUpperCase() === 'S') {
+            // Speichern als PNG
+            const a = document.createElement('a');
+            a.href = imageURL;
+            a.download = `stimmungs_chart_${new Date().toISOString().split('T')[0]}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else if (action && action.toUpperCase() === 'D') {
+            // Drucken
+            const printWindow = window.open('');
+            printWindow.document.write('<img src="' + imageURL + '" style="max-width: 100%;">');
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+    }
+
 
     /**
      * Setzt die Event Listener für das Formular und die Verwaltung.
@@ -497,11 +702,34 @@
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
         exportButton.addEventListener('click', exportData); 
+        exportChartButton.addEventListener('click', exportChart); // NEU: Chart Export
         
         jsonFileInput.addEventListener('change', () => {
             importButton.disabled = !jsonFileInput.files.length;
         });
         importButton.addEventListener('click', importData);
+        
+        // NEU: Jahr-Filter Listener
+        yearFilterEl.addEventListener('change', () => {
+            populateMonthFilter(yearFilterEl.value);
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+        });
+        
+        // NEU: Monat-Filter Listener
+        monthFilterEl.addEventListener('change', () => {
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+        });
+
+        
+        // HILFE MODAL LISTENERS
+        helpButton.addEventListener('click', showHelpModal);
+        closeModalButton.addEventListener('click', closeHelpModal);
+        helpModal.addEventListener('click', (e) => {
+            // Schließe das Modal, wenn außerhalb des Inhalts geklickt wird
+            if (e.target === helpModal) {
+                closeHelpModal();
+            }
+        });
         
         checkFormValidity();
     }
@@ -525,8 +753,6 @@
         
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
 
-        const allEntries = loadEntriesFromLocalStorage();
-        
         const newEntry = {
             id: docId, 
             date: entryDate, 
@@ -539,20 +765,22 @@
             timestamp: new Date().getTime() 
         };
 
-        const existingIndex = allEntries.findIndex(e => e.id === docId);
+        const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
         if (existingIndex > -1) {
-            allEntries[existingIndex] = newEntry; 
+            allStoredEntries[existingIndex] = newEntry; 
         } else {
-            allEntries.push(newEntry); 
+            allStoredEntries.push(newEntry); 
         }
 
         try {
-            saveEntriesToLocalStorage(allEntries);
+            saveEntriesToLocalStorage(allStoredEntries);
 
             statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
             statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-
-            renderSortedHistory(allEntries);
+            
+            // NEU: Filter aktualisieren und Historie neu rendern
+            populateYearFilter(allStoredEntries);
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
 
             // Formular zurücksetzen
             setTimeout(() => {
@@ -583,16 +811,191 @@
      * Lädt die Historie aus localStorage und startet das Rendering.
      */
     function loadHistoryAndStartListening() {
-        const allEntries = loadEntriesFromLocalStorage();
-        renderSortedHistory(allEntries);
+        // allStoredEntries wird bereits in setupApp geladen
+        renderSortedHistory(allStoredEntries);
     }
     
     /**
-     * Sortiert die Einträge und ruft das Rendering auf.
+     * Füllt das Jahr-Dropdown-Menü und aktualisiert den Monatsfilter.
+     * @param {Array<object>} entries Alle Stimmungseinträge.
      */
-    function renderSortedHistory(allEntries) {
+    function populateYearFilter(entries) {
+        // 1. Alle eindeutigen Jahre sammeln
+        const uniqueYears = Array.from(new Set(entries.map(entry => entry.date.substring(0, 4))));
+        
+        // 2. Sortieren (Neuestes zuerst)
+        uniqueYears.sort().reverse();
+        
+        // 3. Dropdown neu füllen
+        const currentValue = yearFilterEl.value;
+        yearFilterEl.innerHTML = '<option value="all">Alle Jahre</option>';
+        
+        uniqueYears.forEach(year => {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year; 
+            yearFilterEl.appendChild(option);
+        });
+        
+        // Den vorherigen Wert wiederherstellen, falls vorhanden
+        if (uniqueYears.includes(currentValue) || currentValue === 'all') {
+             yearFilterEl.value = currentValue;
+        }
+        
+        // Monatsfilter initialisieren
+        populateMonthFilter(yearFilterEl.value);
+    }
+    
+    /**
+     * Füllt das Monat-Dropdown-Menü basierend auf dem ausgewählten Jahr.
+     * @param {string} selectedYear Das aktuell ausgewählte Jahr oder 'all'.
+     */
+    function populateMonthFilter(selectedYear) {
+        monthFilterEl.innerHTML = '<option value="all">Alle Monate</option>';
+        
+        if (selectedYear === 'all') {
+            monthFilterEl.disabled = true;
+            return;
+        }
+        
+        monthFilterEl.disabled = false;
+        
+        // Eindeutige Monatszahlen (01-12) für das ausgewählte Jahr sammeln
+        const uniqueMonths = Array.from(new Set(
+            allStoredEntries
+                .filter(entry => entry.date.startsWith(selectedYear))
+                .map(entry => entry.date.substring(5, 7)) // Extrahiert 'MM'
+        ));
+        
+        // Sortieren (aktuellster Monat zuerst)
+        uniqueMonths.sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+
+        uniqueMonths.forEach(monthStr => {
+            const monthIndex = parseInt(monthStr, 10) - 1; // '01' -> Index 0
+            const monthName = MONTH_NAMES[monthIndex];
+            
+            const option = document.createElement('option');
+            option.value = monthStr;
+            option.textContent = monthName + ' (' + monthStr + ')'; 
+            monthFilterEl.appendChild(option);
+        });
+        
+        // Setze den Monat auf 'all', falls der vorherige Wert nicht mehr gültig ist
+        if (!uniqueMonths.includes(monthFilterEl.value)) {
+            monthFilterEl.value = 'all';
+        }
+    }
+
+
+    /**
+     * Filtert die Historie basierend auf dem ausgewählten Jahr und Monat.
+     * @param {string} selectedYear Das ausgewählte Jahr ('YYYY' oder 'all').
+     * @param {string} selectedMonth Der ausgewählte Monat ('MM' oder 'all').
+     */
+    function filterHistoryByYearMonth(selectedYear, selectedMonth) {
+        let filteredEntries = allStoredEntries;
+        
+        if (selectedYear !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => 
+                entry.date.startsWith(selectedYear)
+            );
+        }
+        
+        if (selectedMonth !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => 
+                entry.date.substring(5, 7) === selectedMonth
+            );
+        }
+        
+        // Rufe die Statistik-Funktion für die gefilterten Daten auf
+        renderStats(filteredEntries);
+        
+        // Wir übergeben die gefilterten Einträge. Das Chart soll NICHT aktualisiert werden (es zeigt immer den Gesamtverlauf).
+        renderSortedHistory(filteredEntries, false);
+    }
+    
+    /**
+     * Rendert die Monats-Statistiken basierend auf den gefilterten Einträgen.
+     * @param {Array<object>} entries Die gefilterten Einträge.
+     */
+    function renderStats(entries) {
+        statsContainerEl.innerHTML = '';
+        
+        if (entries.length === 0) {
+            statsContainerEl.classList.add('hidden');
+            return;
+        }
+        
+        statsContainerEl.classList.remove('hidden');
+
+        let moodSum = 0;
+        let painSum = 0;
+        let tempSum = 0;
+        let tempCount = 0;
+
+        entries.forEach(entry => {
+            moodSum += window.MOOD_VALUES[entry.mood] || 3;
+            painSum += entry.pain !== undefined && entry.pain !== null ? entry.pain : 0;
+            
+            if (entry.temperature !== undefined && entry.temperature !== null) {
+                tempSum += entry.temperature;
+                tempCount++;
+            }
+        });
+
+        const avgMood = (moodSum / entries.length).toFixed(2);
+        const avgPain = (painSum / entries.length).toFixed(1);
+        const avgTemp = tempCount > 0 ? (tempSum / tempCount).toFixed(1) : 'N/A';
+
+        // Hilfsfunktion zur Erstellung der Statistikkarte
+        function createStatCard(title, value, unit, color) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `
+                <p class="stat-card-title">${title}</p>
+                <p class="stat-card-value" style="color: ${color};">${value}${unit}</p>
+            `;
+            return card;
+        }
+
+        // 1. Stimmung
+        const moodCard = createStatCard(
+            'Ø Stimmung (1-5)', 
+            avgMood, 
+            '', 
+            '#4f46e5' // Indigo
+        );
+
+        // 2. Schmerz
+        const painCard = createStatCard(
+            'Ø Schmerz (0-10)', 
+            avgPain, 
+            '', 
+            '#9333ea' // Purple
+        );
+
+        // 3. Temperatur
+        const tempCard = createStatCard(
+            'Ø Temperatur', 
+            avgTemp, 
+            avgTemp !== 'N/A' ? '°C' : '', 
+            '#ef4444' // Red
+        );
+
+        statsContainerEl.appendChild(moodCard);
+        statsContainerEl.appendChild(painCard);
+        statsContainerEl.appendChild(tempCard);
+    }
+
+
+    /**
+     * Sortiert die Einträge und ruft das Rendering auf.
+     * @param {Array<object>} entries Die Einträge, die sortiert werden sollen.
+     * @param {boolean} updateChartFilter Ob das Chart und die Filter ebenfalls aktualisiert werden sollen (nur bei app-Start/Import/Löschen true).
+     */
+    function renderSortedHistory(entries, updateChartFilter = true) {
          // Sortierung: Neuestes Datum zuerst, dann nach Tageszeit (Nacht -> Abend)
-        const sortedEntries = allEntries.sort((a, b) => {
+        const sortedEntries = entries.sort((a, b) => {
             if (a.date < b.date) return 1;
             if (a.date > b.date) return -1;
             
@@ -600,13 +1003,28 @@
             return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
         });
 
+        // Beim ersten Laden, das Chart und die Filter füllen/aktualisieren
+        if (updateChartFilter) {
+            populateYearFilter(allStoredEntries);
+            if (typeof renderMoodChart !== 'undefined') {
+                 renderMoodChart(allStoredEntries); // Das Chart nutzt immer ALLE Daten
+            }
+        }
+
         renderHistory(sortedEntries);
+        // Stelle sicher, dass die Statistiken auch beim ersten Laden/Sortieren gerendert werden
+        // Wenn `entries` die gefilterten sind, dann sollen sie hier gerendert werden.
+        if (!updateChartFilter) {
+            renderStats(entries);
+        } else {
+             // Beim Start oder nach dem Reset/Import müssen die Statistiken der aktuellen Filteransicht entsprechen
+             filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+        }
     }
-
-
+    
     /**
-     * Rendert die Historie in HTML und übergibt die Daten an das Chart.
-     * @param {Array<object>} entries Alle sortierten Stimmungseinträge.
+     * Rendert die Historie in HTML.
+     * @param {Array<object>} entries Die sortierten Stimmungseinträge.
      */
     function renderHistory(entries) {
         loadingHistoryEl.classList.add('hidden');
@@ -614,9 +1032,6 @@
 
         if (entries.length === 0) {
             noEntriesEl.classList.remove('hidden');
-            if (typeof renderMoodChart !== 'undefined') {
-                renderMoodChart([]); 
-            }
             return;
         }
 
@@ -632,11 +1047,6 @@
             acc[dateKey].push(entry);
             return acc;
         }, {});
-
-        // Daten des Diagramms rendern
-        if (typeof renderMoodChart !== 'undefined') {
-            renderMoodChart(entries); 
-        }
 
         // HTML-Elemente für die Historie erstellen
         const sortedDates = Object.keys(groupedByDate).sort().reverse();
@@ -657,6 +1067,14 @@
             dateGroup.appendChild(entriesList);
 
             historyContainerEl.appendChild(dateGroup);
+        });
+        
+        // NEU: Event Listener für die Löschen-Buttons hinzufügen, sobald die Historie gerendert ist
+        document.querySelectorAll('.delete-entry-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const entryId = e.currentTarget.dataset.id;
+                deleteEntry(entryId);
+            });
         });
     }
 
@@ -690,8 +1108,35 @@
                         : ''}
                     </div>
                 </div>
+                <button class="delete-entry-btn hover:text-red-600" data-id="${entry.id}" title="Eintrag löschen">
+                    &times;
+                </button>
             </div>
         `;
+    }
+
+    /**
+     * Löscht einen einzelnen Eintrag anhand seiner ID.
+     * @param {string} id Die eindeutige ID des Eintrags (Datum_Tageszeit).
+     */
+    function deleteEntry(id) {
+        if (!confirm(`Sicher, dass Sie diesen Eintrag (ID: ${id}) löschen möchten?`)) {
+            return;
+        }
+
+        const initialLength = allStoredEntries.length;
+        
+        // Eintrag aus der Liste entfernen
+        allStoredEntries = allStoredEntries.filter(entry => entry.id !== id);
+        
+        if (allStoredEntries.length < initialLength) {
+            saveEntriesToLocalStorage(allStoredEntries);
+            
+            // Historie neu rendern und Chart/Filter aktualisieren
+            renderSortedHistory(allStoredEntries, true);
+        } else {
+            alert("Fehler: Eintrag nicht gefunden.");
+        }
     }
 
     /**
@@ -708,12 +1153,15 @@
 
         try {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
+            allStoredEntries = []; // Globale Variable leeren
             
             resetStatusEl.textContent = `Erfolgreich alle Einträge gelöscht!`;
             resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
             
-            // UI neu rendern
-            renderHistory([]); 
+            // UI neu rendern und Filter/Chart zurücksetzen
+            yearFilterEl.value = 'all';
+            monthFilterEl.value = 'all';
+            renderSortedHistory([], true); 
 
         } catch (error) {
             console.error("Fehler beim Löschen der Einträge:", error);
@@ -729,7 +1177,7 @@
      * Exportiert alle gespeicherten Daten als JSON-Datei.
      */
     function exportData() {
-        const allEntries = loadEntriesFromLocalStorage();
+        const allEntries = allStoredEntries;
         
         if (allEntries.length === 0) {
             alert("Es sind keine Einträge zum Exportieren vorhanden!");
@@ -778,7 +1226,6 @@
                     throw new Error("Die Datei ist kein gültiges Array von Einträgen. Erwartet wurde ein JSON-Array ([...]).");
                 }
 
-                let currentEntries = loadEntriesFromLocalStorage();
                 let entriesAdded = 0;
                 let entriesOverwritten = 0;
 
@@ -788,20 +1235,23 @@
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
 
-                    const existingIndex = currentEntries.findIndex(e => e.id === docId);
+                    const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
 
                     if (existingIndex > -1) {
-                        currentEntries[existingIndex] = entry;
+                        allStoredEntries[existingIndex] = entry;
                         entriesOverwritten++;
                     } else {
-                        currentEntries.push(entry);
+                        allStoredEntries.push(entry);
                         entriesAdded++;
                     }
                 });
 
-                saveEntriesToLocalStorage(currentEntries);
+                saveEntriesToLocalStorage(allStoredEntries);
                 
-                renderSortedHistory(currentEntries);
+                // Historie neu rendern und Chart/Filter aktualisieren
+                yearFilterEl.value = 'all';
+                monthFilterEl.value = 'all';
+                renderSortedHistory(allStoredEntries, true);
 
                 importStatusEl.textContent = `Import erfolgreich! ${entriesAdded} neue Einträge hinzugefügt, ${entriesOverwritten} überschrieben.`;
                 importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
@@ -899,7 +1349,8 @@
         if (moodChartInstance) { moodChartInstance.destroy(); }
         
         // 1. Daten pro Tag gruppieren und Durchschnitt berechnen
-        const dailyData = entries.reduce((acc, entry) => {
+        // Das Chart nutzt immer ALLE Einträge (allStoredEntries), um den vollen Verlauf zu zeigen.
+        const dailyData = allStoredEntries.reduce((acc, entry) => {
             const dateKey = entry.date;
             const moodValue = window.MOOD_VALUES[entry.mood] || 3; 
             const tempValue = entry.temperature || null; 
@@ -949,9 +1400,12 @@
         if (chartData.length < 2) {
             chartStatusEl.classList.remove('hidden');
             moodChartEl.style.width = '100%'; 
+            exportChartButton.disabled = true;
             return;
         }
         chartStatusEl.classList.add('hidden');
+        exportChartButton.disabled = false;
+
 
         // Dynamische Breitenanpassung
         const numDataPoints = chartData.length;
