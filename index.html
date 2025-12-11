@@ -1045,37 +1045,13 @@
     }
     
     function exportData() {
-    const allEntries = allStoredEntries;
-    if (allEntries.length === 0) { 
-        alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
-        return; 
-    }
-    
-    const dataStr = JSON.stringify(allEntries, null, 2); 
-    const now = new Date();
-    const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
-    const mimeType = "application/json";
-
-    // --- NEUE LOGIK FÜR DIE APK (Android WebView) ---
-    // Prüfen, ob die native Schnittstelle existiert (Name: 'Android')
-    if (window.Android && typeof window.Android.saveFile === 'function') {
-        try {
-            // Rufen Sie die native Android-Methode auf, die wir in Schritt 2 erstellen!
-            window.Android.saveFile(filename, dataStr, mimeType);
-            alert(`Daten erfolgreich als ${filename} exportiert (über Native App).`);
-            return; // Beende die Funktion hier, da die native Speicherung läuft.
-        } catch (e) {
-            console.error("Fehler beim Aufruf der nativen Bridge:", e);
-            alert(`Fehler beim Export über Native Bridge: ${e.message}`);
-        }
-    }
-    // --------------------------------------------------
-
-    // --- FALLBACK (NUR FÜR BROWSER/SERVER) ---
-    // Dieser Teil funktioniert im file://-Kontext der APK NICHT mehr
-    try {
-        const blob = new Blob([dataStr], { type: mimeType });
+        const allEntries = allStoredEntries;
+        if (allEntries.length === 0) { alert("Es sind keine Einträge zum Exportieren vorhanden!"); return; }
+        const dataStr = JSON.stringify(allEntries, null, 2); 
+        const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
+        const now = new Date();
+        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
@@ -1083,13 +1059,8 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        alert(`Daten erfolgreich als ${filename} exportiert.`); 
-    } catch (e) {
-        console.error("Fehler beim Browser-Download:", e);
-        // Falls der Download im Browser (z.B. Chrome) auch mal fehlschlägt.
-        alert(`Export erfolgreich, aber Download wurde möglicherweise blockiert. Speichern Sie manuell.`);
+        alert(`Daten erfolgreich als ${filename} exportiert.`);
     }
-}
 
     function importData() {
         const file = jsonFileInput.files[0];
