@@ -3,6 +3,8 @@ const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js', 
   './icons/icon-192x192.png',
   './icons/icon-512x512.png'
 ];
