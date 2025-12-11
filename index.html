@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <title>Stimmungs- & Vital-Tagebuch (Lokal)</title>
-    <script src="tailwind.css"></script>
+    <script src="tailwind.css"></script> 
     <style>
         @import url('css2.css');
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
@@ -445,7 +445,7 @@
                 return; 
             }
             // Wenn der Text noch auf "Lade Standort" steht und wir *wissen*, dass es fehlschlug
-            if (!weatherStatusEl.textContent.includes('❌ Standortzugriff verweigert') && !weatherStatusEl.textContent.includes('❌ Fehler beim Laden')) {
+            if (!weatherStatusEl.textContent.includes('❌ Standortzugriff verweigert') && !weatherStatusEl.textContent.includes('❌ Fehler beim Laden') && !weatherStatusEl.textContent.includes('Timeout')) {
                  weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
             }
             return;
@@ -470,6 +470,9 @@
         }
     }
     
+    // Globale Zähler für die Retry-Logik der Geolocation
+    let retryCount = 0; 
+    const MAX_RETRIES = 1; // Maximal ein weiterer Versuch nach dem ersten Timeout
 
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
@@ -499,12 +502,12 @@
         }
 
         try {
-            // Nur Standort abfragen, wenn er noch nicht bekannt ist oder abgelaufen (für 14-Tage-Check siehe oben)
-            if (userLatitude === null || !currentTemperatureData || !lastFetchedDate) { 
+            // Standort abfragen, wenn er noch nicht bekannt ist oder abgelaufen (für 14-Tage-Check siehe oben)
+            if (userLatitude === null || !currentTemperatureData || !lastFetchedDate || retryCount > 0) { 
                 const position = await new Promise((resolve, reject) => {
-                    // WICHTIG: Höherer Timeout und niedrigere Genauigkeit für schnellere Ergebnisse
+                    // WICHTIG: Timeout auf 2 Sekunden (2000 ms) gesetzt
                     navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                        timeout: 5000, 
+                        timeout: 2000, // <--- HIER AUF 2000ms GEÄNDERT
                         enableHighAccuracy: false 
                     });
                 });
@@ -515,18 +518,33 @@
             weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
             await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
             updateWeatherDisplayForSelectedPeriod(); 
+            retryCount = 0; // Erfolg -> Zähler zurücksetzen
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
+            
+            // NEUE LOGIK FÜR RETRY BEI TIMEOUT (2-Sekunden-Limit)
+            if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
+                retryCount++; // Zähler erhöhen
+                console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES + 1}). Starte sofort erneute Abfrage...`);
+                // Sofortiger erneuter Aufruf der Funktion
+                weatherStatusEl.textContent = `Standort-Timeout (2s)! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
+                return fetchWeather(targetDateStr); // Sofortiger erneuter Aufruf
+            }
+            
+            // Fehlerbehandlung für endgültigen Fehler/Verweigerung
             if (error.code === error.PERMISSION_DENIED) {
                  weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
             } else if (error.code === error.TIMEOUT) {
-                 weatherStatusEl.textContent = '❌ Standortabfrage-Timeout. Eintrag ohne Wetter.';
+                 // Dies wird nur erreicht, wenn MAX_RETRIES überschritten ist
+                 weatherStatusEl.textContent = '❌ Standortabfrage-Timeout nach 2 Versuchen. Eintrag ohne Wetter.';
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
+
             userLatitude = null; 
             userLongitude = null; 
             currentTemperatureData = null; 
+            retryCount = 0; // Fehler -> Zähler zurücksetzen
             updateWeatherDisplayForSelectedPeriod(); 
             checkFormValidity(); 
         }
@@ -629,6 +647,7 @@
     function setupFormListeners() {
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
+            // Beim Ändern des Datums immer Geolocation neu versuchen, um aktuelle Wetterdaten zu laden
             fetchWeather(entryDateEl.value); 
             updateWeatherDisplayForSelectedPeriod();
         });
@@ -690,7 +709,7 @@
         });
 
         helpButton.addEventListener('click', showHelpModal);
-        closeModalButton.addEventListener('click', closeHelpModal);
+        closeModalButton.addEventListener('click', closeModalButton);
         helpModal.addEventListener('click', (e) => {
             if (e.target === helpModal) { closeHelpModal(); }
         });
