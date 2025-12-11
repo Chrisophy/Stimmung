@@ -116,7 +116,7 @@
                     </div>
                     <div class="flex-1">
                         <label for="gewicht" class="block text-xs font-medium text-gray-500">Gewicht (kg)</label>
-                        <input type="number" id="gewicht" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 75.5" step="0.1" min="10">
+                        <input type="number" id="gewicht" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500" placeholder="z.B. 75.5" step="0.1" min="10">
                     </div>
                 </div>
                 <div class="flex space-x-3">
@@ -882,13 +882,20 @@
             `;
             return card;
         }
+        // KORREKTUREN DER FARBEN FÜR GEWICHT & BLUTZUCKER (BZ) HIER:
+        const MOOD_COLOR = '#4f46e5';   // Indigo 600
+        const PAIN_COLOR = '#9333ea';   // Purple 600
+        const TEMP_COLOR = '#ef4444';   // Red 500
+        const PULS_COLOR = '#10b981';   // Green 600
+        const GEWICHT_COLOR = '#db2777'; // Pink 600
+        const BLUTZUCKER_COLOR = '#d97706'; // Amber 700 / Yellow-Orange
 
-        const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', '#4f46e5' );
-        const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', '#9333ea' );
-        const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', '#ef4444' );
-        const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', '#10b981' );
-        const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', '#f59e0b' );
-        const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', '#3b82f6' );
+        const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', MOOD_COLOR );
+        const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
+        const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', TEMP_COLOR );
+        const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
+        const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', GEWICHT_COLOR );
+        const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', BLUTZUCKER_COLOR );
 
         statsContainerEl.innerHTML = ''; 
         statsContainerEl.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6'; 
@@ -1398,6 +1405,13 @@
         const ctx = vitalChartEl.getContext('2d');
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
 
+        // KORREKTUREN DER CHART FARBEN HIER:
+        const PULS_COLOR_CHART = '#10b981';   // Green 600
+        const GEWICHT_COLOR_CHART = '#db2777'; // Pink 600 (Korrektur)
+        const BLUTZUCKER_COLOR_CHART = '#d97706'; // Amber 700 (Korrektur)
+        const BLUTDRUCK_SYS_COLOR_CHART = '#06b6d4'; // Cyan 600
+        const BLUTDRUCK_DIA_COLOR_CHART = '#60a5fa'; // Blue 400
+
         vitalChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -1406,35 +1420,35 @@
                     {
                         label: 'Ø Puls (BPM)',
                         data: chartData.map(d => d.puls),
-                        borderColor: '#10b981', 
+                        borderColor: PULS_COLOR_CHART, 
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'puls', order: 1,
                     },
                     {
                         label: 'Ø Gewicht (kg)',
                         data: chartData.map(d => d.gewicht),
-                        borderColor: '#f59e0b', 
-                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                        borderColor: GEWICHT_COLOR_CHART, // KORRIGIERT
+                        backgroundColor: 'rgba(219, 39, 119, 0.2)', // Pink 600 transparent
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'gewicht', order: 2,
                     },
                     {
                         label: 'Ø Blutzucker (mg/dL)',
                         data: chartData.map(d => d.blutzucker),
-                        borderColor: '#3b82f6', 
-                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: BLUTZUCKER_COLOR_CHART, // KORRIGIERT
+                        backgroundColor: 'rgba(217, 119, 6, 0.2)', // Amber 700 transparent
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutzucker', order: 3,
                     },
                     {
                         label: 'Ø Blutdruck Systolisch (mmHg)',
                         data: chartData.map(d => d.blutdruckSys),
-                        borderColor: '#06b6d4', 
+                        borderColor: BLUTDRUCK_SYS_COLOR_CHART, 
                         backgroundColor: 'rgba(6, 182, 212, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 4,
                     },
                     {
                         label: 'Ø Blutdruck Diastolisch (mmHg)',
                         data: chartData.map(d => d.blutdruckDia),
-                        borderColor: '#60a5fa', 
+                        borderColor: BLUTDRUCK_DIA_COLOR_CHART, 
                         backgroundColor: 'rgba(96, 165, 250, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 5,
                     }
@@ -1444,10 +1458,10 @@
                 responsive: false, 
                 maintainAspectRatio: false, 
                 scales: {
-                    puls: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls (BPM)', color: '#10b981' }, ticks: { color: '#10b981', callback: (v) => v.toFixed(0) } },
-                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 100, title: { display: true, text: 'Gewicht (kg)', color: '#f59e0b' }, ticks: { color: '#f59e0b', callback: (v) => v.toFixed(1) } },
-                    blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: '#3b82f6' }, ticks: { color: '#3b82f6', callback: (v) => v.toFixed(0) } },
-                    blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: '#06b6d4' }, ticks: { color: '#06b6d4', callback: (v) => v.toFixed(0) } },
+                    puls: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls (BPM)', color: PULS_COLOR_CHART }, ticks: { color: PULS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
+                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 100, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, callback: (v) => v.toFixed(1) } },
+                    blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: BLUTZUCKER_COLOR_CHART }, ticks: { color: BLUTZUCKER_COLOR_CHART, callback: (v) => v.toFixed(0) } },
+                    blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: BLUTDRUCK_SYS_COLOR_CHART }, ticks: { color: BLUTDRUCK_SYS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
                     x: { beginAtZero: false, }
                 },
                 plugins: {
@@ -1574,6 +1588,5 @@
       });
     }
 </script>
-
 </body>
 </html>
