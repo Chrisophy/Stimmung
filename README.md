@@ -1,5 +1,7 @@
 
 🎯 Hauptfunktion
+
+
 Die Hauptfunktion der App ist die einfache und schnelle Erfassung und Nachverfolgung Ihres emotionalen und körperlichen Zustands über den Tag und über die Zeit.
 
 📝 Erweiterte Erfassung
