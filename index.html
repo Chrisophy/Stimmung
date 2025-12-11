@@ -429,6 +429,7 @@
         allStoredEntries = loadEntriesFromLocalStorage(); 
         preselectTimePeriod(); 
         renderSortedHistory(allStoredEntries, true); 
+        // WICHTIGE ÄNDERUNG: Initialer Wetter-Abruf startet hier, um Standort-Berechtigung zu fordern.
         fetchWeather(entryDateEl.value); 
     }
     
@@ -437,24 +438,34 @@
      * dem aktuell gewählten Zeitraum und den geladenen/gecachten Daten.
      */
     function updateWeatherDisplayForSelectedPeriod() {
+        // Zustand 1: Standortzugriff generell verweigert oder nicht abgefragt
+        if (userLatitude === null || userLongitude === null) {
+            if (weatherStatusEl.textContent.includes('Lade Standort') && !weatherStatusEl.textContent.includes('❌')) { 
+                // Wenn wir noch aktiv laden, warten wir auf das Ergebnis/Fehler
+                return; 
+            }
+            // Wenn der Text noch auf "Lade Standort" steht und wir *wissen*, dass es fehlschlug
+            if (!weatherStatusEl.textContent.includes('❌ Standortzugriff verweigert') && !weatherStatusEl.textContent.includes('❌ Fehler beim Laden')) {
+                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+            }
+            return;
+        }
+
+        // Zustand 2: Zeitraum noch nicht gewählt
         if (!selectedPeriod) {
             weatherStatusEl.textContent = 'Wählen Sie einen Zeitraum für die Wetterinformation.';
             return;
         }
-
-        const weather = getWeatherDataForPeriod(selectedPeriod, entryDateEl.value);
         
-        if (userLatitude === null || userLongitude === null) {
-
-            weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
-        } else if (weather.temperature !== null) {
-
+        // Zustand 3: Wetterdaten sind da
+        const weather = getWeatherDataForPeriod(selectedPeriod, entryDateEl.value);
+        if (weather.temperature !== null) {
             weatherStatusEl.textContent = `✅ Wetter für ${selectedPeriod}: ${weather.temperature}°C, ${weather.weatherCondition}`;
         } else if (currentTemperatureData === null || currentTemperatureData.length === 0) {
-
+            // Zustand 4: Standort ist da, aber Wetterdaten laden noch
             weatherStatusEl.textContent = 'Lade Wetterdaten...'; 
         } else {
-
+            // Zustand 5: Standort ist da, Wetterdaten sind geladen, aber für diesen Zeitpunkt nicht gefunden
             weatherStatusEl.textContent = '⚠️ Keine präzisen Wetterdaten für diese Zeit gefunden.';
         }
     }
@@ -462,13 +473,16 @@
 
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
+        
+        // 1. Lokalen Cache prüfen (Wetterdaten sind für 14 Tage ab der letzten Abfrage gültig)
         if (lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
             const targetTime = new Date(targetDateStr).getTime();
             const loadedStartTime = new Date(lastFetchedDate).getTime();
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
-            if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
-
+            
+            // Wenn das Zieldatum im geladenen 14-Tage-Fenster liegt UND wir bereits einen Standort haben
+            if (targetTime >= loadedStartTime && targetTime < loadedEndTime && userLatitude !== null) {
                 updateWeatherDisplayForSelectedPeriod();
                 checkFormValidity(); 
                 return;
@@ -479,26 +493,41 @@
         if (!navigator.geolocation) {
             weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
             checkFormValidity(); 
+            userLatitude = null; userLongitude = null; 
+            updateWeatherDisplayForSelectedPeriod();
             return;
         }
 
         try {
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false });
-            });
-
-            userLatitude = position.coords.latitude; 
-            userLongitude = position.coords.longitude; 
+            // Nur Standort abfragen, wenn er noch nicht bekannt ist oder abgelaufen (für 14-Tage-Check siehe oben)
+            if (userLatitude === null || !currentTemperatureData || !lastFetchedDate) { 
+                const position = await new Promise((resolve, reject) => {
+                    // WICHTIG: Höherer Timeout und niedrigere Genauigkeit für schnellere Ergebnisse
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                        timeout: 5000, 
+                        enableHighAccuracy: false 
+                    });
+                });
+                userLatitude = position.coords.latitude; 
+                userLongitude = position.coords.longitude; 
+            }
+            
             weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
             await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
+            updateWeatherDisplayForSelectedPeriod(); 
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
             if (error.code === error.PERMISSION_DENIED) {
                  weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+            } else if (error.code === error.TIMEOUT) {
+                 weatherStatusEl.textContent = '❌ Standortabfrage-Timeout. Eintrag ohne Wetter.';
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
-            updateWeatherDisplayForSelectedPeriod();
+            userLatitude = null; 
+            userLongitude = null; 
+            currentTemperatureData = null; 
+            updateWeatherDisplayForSelectedPeriod(); 
             checkFormValidity(); 
         }
     }
@@ -524,12 +553,12 @@
             currentTemperatureData = hourlyData; 
             lastFetchedDate = startDateStr; 
             
-
-            updateWeatherDisplayForSelectedPeriod();
+            updateWeatherDisplayForSelectedPeriod(); 
             checkFormValidity(); 
         } catch (error) {
             console.error("Fehler beim Abrufen der Wetterdaten:", error);
             weatherStatusEl.textContent = '❌ Fehler beim Laden der Wetterdaten. Eintrag ohne Temperatur/Wetterzustand.';
+            currentTemperatureData = null; 
             checkFormValidity(); 
             updateWeatherDisplayForSelectedPeriod();
         }
@@ -615,6 +644,7 @@
                 updateWeatherDisplayForSelectedPeriod(); 
 
                 if (entryDateEl.value) { 
+                    // Führt fetchWeather erneut aus, falls Geolocation beim ersten Laden fehlgeschlagen ist
                     fetchWeather(entryDateEl.value); 
                 }
             }
@@ -748,9 +778,9 @@
                 painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 checkFormValidity();
                 statusMessageEl.textContent = '';
-                fetchWeather(entryDateEl.value); 
+                // Setze den Wetter-Status neu und versuche, Daten für das neue Datum zu laden
                 preselectTimePeriod(); 
-                updateWeatherDisplayForSelectedPeriod();
+                fetchWeather(entryDateEl.value); 
             }, 1500);
 
         } catch (error) {
@@ -882,13 +912,13 @@
             `;
             return card;
         }
-        // KORREKTUREN DER FARBEN FÜR GEWICHT & BLUTZUCKER (BZ) HIER:
-        const MOOD_COLOR = '#4f46e5';   // Indigo 600
-        const PAIN_COLOR = '#9333ea';   // Purple 600
-        const TEMP_COLOR = '#ef4444';   // Red 500
+        
+        const MOOD_COLOR = '#4f46e5';   
+        const PAIN_COLOR = '#9333ea';   
+        const TEMP_COLOR = '#ef4444';   
         const PULS_COLOR = '#10b981';   // Green 600
         const GEWICHT_COLOR = '#db2777'; // Pink 600
-        const BLUTZUCKER_COLOR = '#d97706'; // Amber 700 / Yellow-Orange
+        const BLUTZUCKER_COLOR = '#d97706'; // Amber 700 
 
         const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', MOOD_COLOR );
         const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
@@ -1427,15 +1457,15 @@
                     {
                         label: 'Ø Gewicht (kg)',
                         data: chartData.map(d => d.gewicht),
-                        borderColor: GEWICHT_COLOR_CHART, // KORRIGIERT
-                        backgroundColor: 'rgba(219, 39, 119, 0.2)', // Pink 600 transparent
+                        borderColor: GEWICHT_COLOR_CHART, 
+                        backgroundColor: 'rgba(219, 39, 119, 0.2)', 
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'gewicht', order: 2,
                     },
                     {
                         label: 'Ø Blutzucker (mg/dL)',
                         data: chartData.map(d => d.blutzucker),
-                        borderColor: BLUTZUCKER_COLOR_CHART, // KORRIGIERT
-                        backgroundColor: 'rgba(217, 119, 6, 0.2)', // Amber 700 transparent
+                        borderColor: BLUTZUCKER_COLOR_CHART, 
+                        backgroundColor: 'rgba(217, 119, 6, 0.2)', 
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutzucker', order: 3,
                     },
                     {
