@@ -21,7 +21,22 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; overflow-y: auto; }
         .modal-content { background-color: white; padding: 1.5rem; border-radius: 0.75rem; max-width: 90%; width: 500px; margin: 2rem 0; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2); position: relative; max-height: 90vh; overflow-y: auto; }
         .modal-show { display: flex; }
-        .delete-entry-btn { color: #f87171; font-size: 1.5rem; padding: 0.1rem 0.5rem; line-height: 1; transition: color 0.1s; }
+        /* NEUES CSS FÜR DIE EINTRAGSHISTORIE */
+        .history-entry-item { 
+            position: relative; /* Wichtig für die Positionierung des Lösch-Buttons */
+            padding-right: 3rem; /* Platz für den Lösch-Button */
+        }
+        .delete-entry-btn { 
+            position: absolute; 
+            top: 0.5rem; 
+            right: 0.5rem; 
+            color: #f87171; 
+            font-size: 1.5rem; 
+            padding: 0.1rem 0.5rem; 
+            line-height: 1; 
+            transition: color 0.1s; 
+            z-index: 10;
+        }
         .delete-entry-btn:hover { color: #ef4444; transform: scale(1.1); }
         .stat-card { padding: 1rem; border-radius: 0.5rem; background-color: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center; }
         .stat-card-title { font-size: 0.875rem; font-weight: 500; color: #6b7280; }
@@ -429,7 +444,7 @@
         allStoredEntries = loadEntriesFromLocalStorage(); 
         preselectTimePeriod(); 
         renderSortedHistory(allStoredEntries, true); 
-        // WICHTIGE ÄNDERUNG: Initialer Wetter-Abruf startet hier, um Standort-Berechtigung zu fordern.
+        // Initialer Wetter-Abruf startet hier.
         fetchWeather(entryDateEl.value); 
     }
     
@@ -440,13 +455,14 @@
     function updateWeatherDisplayForSelectedPeriod() {
         // Zustand 1: Standortzugriff generell verweigert oder nicht abgefragt
         if (userLatitude === null || userLongitude === null) {
-            if (weatherStatusEl.textContent.includes('Lade Standort') && !weatherStatusEl.textContent.includes('❌')) { 
-                // Wenn wir noch aktiv laden, warten wir auf das Ergebnis/Fehler
+            // Wenn der Status bereits eine End-Fehlermeldung anzeigt, behalten wir diese bei, 
+            // bis fetchWeather erneut getriggert wird.
+            if (weatherStatusEl.textContent.includes('Timeout') || weatherStatusEl.textContent.includes('verweigert')) {
                 return; 
             }
             // Wenn der Text noch auf "Lade Standort" steht und wir *wissen*, dass es fehlschlug
-            if (!weatherStatusEl.textContent.includes('❌ Standortzugriff verweigert') && !weatherStatusEl.textContent.includes('❌ Fehler beim Laden') && !weatherStatusEl.textContent.includes('Timeout')) {
-                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+            if (!weatherStatusEl.textContent.includes('Lade Standort')) {
+                 weatherStatusEl.textContent = 'Standort nicht verfügbar. Eintrag ohne Wetter.';
             }
             return;
         }
@@ -472,38 +488,46 @@
     
     // Globale Zähler für die Retry-Logik der Geolocation
     let retryCount = 0; 
-    const MAX_RETRIES = 2; // Maximal zwei weitere Versuche nach dem ersten Timeout
+    const MAX_RETRIES = 2; // Maximal zwei weitere Versuche nach dem ersten Timeout (insgesamt 3 Versuche)
 
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
         
         // 1. Lokalen Cache prüfen (Wetterdaten sind für 14 Tage ab der letzten Abfrage gültig)
-        if (lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
+        // Dieser Teil prüft, ob wir den Standort haben und die Wetterdaten noch aktuell sind.
+        if (userLatitude !== null && userLongitude !== null && lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
             const targetTime = new Date(targetDateStr).getTime();
             const loadedStartTime = new Date(lastFetchedDate).getTime();
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
             
-            // Wenn das Zieldatum im geladenen 14-Tage-Fenster liegt UND wir bereits einen Standort haben
-            if (targetTime >= loadedStartTime && targetTime < loadedEndTime && userLatitude !== null) {
+            // Wenn das Zieldatum im geladenen 14-Tage-Fenster liegt, verwenden wir den Cache
+            if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
                 updateWeatherDisplayForSelectedPeriod();
                 checkFormValidity(); 
+                retryCount = 0; // Wichtig: Wenn Cache genutzt, Reset!
                 return;
             }
         }
         
-        weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
-        if (!navigator.geolocation) {
-            weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
-            checkFormValidity(); 
-            userLatitude = null; userLongitude = null; 
-            updateWeatherDisplayForSelectedPeriod();
-            return;
-        }
+        // 2. Geolocation starten, wenn kein Standort bekannt ODER wenn wir einen Retry starten
+        if (userLatitude === null || retryCount > 0) { 
+            if (!navigator.geolocation) {
+                weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
+                checkFormValidity(); 
+                userLatitude = null; userLongitude = null; 
+                updateWeatherDisplayForSelectedPeriod();
+                return;
+            }
 
-        try {
-            // Standort abfragen, wenn er noch nicht bekannt ist oder abgelaufen (für 14-Tage-Check siehe oben)
-            if (userLatitude === null || !currentTemperatureData || !lastFetchedDate || retryCount > 0) { 
+            // Status-Update beim ersten Versuch oder beim Retry
+            if (retryCount === 0) {
+                weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
+            } else {
+                weatherStatusEl.textContent = `Standort-Timeout! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
+            }
+
+            try {
                 const position = await new Promise((resolve, reject) => {
                     // WICHTIG: Timeout auf 5 Sekunden (5000 ms) gesetzt
                     navigator.geolocation.getCurrentPosition(resolve, reject, { 
@@ -513,41 +537,43 @@
                 });
                 userLatitude = position.coords.latitude; 
                 userLongitude = position.coords.longitude; 
-            }
-            
-            weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
-            await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
-            updateWeatherDisplayForSelectedPeriod(); 
-            retryCount = 0; // Erfolg -> Zähler zurücksetzen
-        } catch (error) {
-            console.error("Fehler beim Abrufen des Standorts:", error);
-            
-            // LOGIK FÜR RETRY BEI TIMEOUT (5-Sekunden-Limit)
-            if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
-                retryCount++; // Zähler erhöhen
-                console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES}). Starte sofort erneute Abfrage...`);
-                // Sofortiger erneuter Aufruf der Funktion
-                weatherStatusEl.textContent = `Standort-Timeout! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
-                return fetchWeather(targetDateStr); // Sofortiger erneuter Aufruf
-            }
-            
-            // Fehlerbehandlung für endgültigen Fehler/Verweigerung
-            if (error.code === error.PERMISSION_DENIED) {
-                 weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
-            } else if (error.code === error.TIMEOUT) {
-                 // Dies wird nur erreicht, wenn MAX_RETRIES überschritten ist
-                 weatherStatusEl.textContent = `❌ Standortabfrage-Timeout nach ${MAX_RETRIES + 1} Versuchen. Eintrag ohne Wetter.`;
-            } else {
-                 weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
-            }
+                retryCount = 0; // Erfolg -> Zähler zurücksetzen
+            } catch (error) {
+                console.error("Fehler beim Abrufen des Standorts:", error);
+                
+                // LOGIK FÜR RETRY BEI TIMEOUT (5-Sekunden-Limit)
+                if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
+                    retryCount++; // Zähler erhöhen
+                    console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES}). Starte sofort erneute Abfrage...`);
+                    // Sofortiger erneuter Aufruf der Funktion (Retry)
+                    return fetchWeather(targetDateStr); 
+                }
+                
+                // Fehlerbehandlung für endgültigen Fehler/Verweigerung/MAX_RETRIES überschritten
+                if (error.code === error.PERMISSION_DENIED) {
+                     weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+                } else if (error.code === error.TIMEOUT) {
+                     // Endgültiges Timeout nach MAX_RETRIES
+                     weatherStatusEl.textContent = `❌ Standortabfrage-Timeout nach ${MAX_RETRIES + 1} Versuchen. Eintrag ohne Wetter.`;
+                } else {
+                     weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
+                }
 
-            userLatitude = null; 
-            userLongitude = null; 
-            currentTemperatureData = null; 
-            retryCount = 0; // Fehler -> Zähler zurücksetzen
-            updateWeatherDisplayForSelectedPeriod(); 
-            checkFormValidity(); 
-        }
+                userLatitude = null; 
+                userLongitude = null; 
+                currentTemperatureData = null; 
+                retryCount = 0; // Fehler -> Zähler zurücksetzen, um neuen Versuch zu erlauben
+                updateWeatherDisplayForSelectedPeriod(); 
+                checkFormValidity(); 
+                return; 
+            }
+        } 
+        
+        // 3. Wetterdaten abrufen, wenn Standort erfolgreich ermittelt
+        weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
+        await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
+        updateWeatherDisplayForSelectedPeriod(); 
+        checkFormValidity(); 
     }
 
 
@@ -663,7 +689,7 @@
                 updateWeatherDisplayForSelectedPeriod(); 
 
                 if (entryDateEl.value) { 
-                    // Führt fetchWeather erneut aus, falls Geolocation beim ersten Laden fehlgeschlagen ist
+                    // Führt fetchWeather erneut aus, falls Geolocation beim ersten Laden fehlgeschlagen ist oder Daten neu geladen werden müssen
                     fetchWeather(entryDateEl.value); 
                 }
             }
@@ -709,7 +735,7 @@
         });
 
         helpButton.addEventListener('click', showHelpModal);
-        closeModalButton.addEventListener('click', closeModalButton);
+        closeModalButton.addEventListener('click', closeHelpModal);
         helpModal.addEventListener('click', (e) => {
             if (e.target === helpModal) { closeHelpModal(); }
         });
@@ -1049,15 +1075,17 @@
         }
 
         return `
-            <div class="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-100 last:border-b-0">
-                <div class="flex items-start space-x-3">
-                    <span class="text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
+            <div class="flex py-3 px-4 bg-white border-b border-gray-100 last:border-b-0 history-entry-item">
+                <div class="flex items-start space-x-3 w-full">
+                    <span class="flex-shrink-0 text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
                     <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
-                    <div class="text-sm flex-grow">
-                        <p class="font-semibold text-gray-700 flex items-center">${moodName}${painDisplay}${painRegions}</p>
+                    <div class="text-sm flex-grow min-w-0">
+                        <p class="font-semibold text-gray-700 flex items-center flex-wrap">
+                            ${moodName}${painDisplay}${painRegions}
+                        </p>
                         ${vitalLine}
                         ${entry.note || weatherLine ? 
-                            `<p class="text-gray-500 italic text-xs mt-1">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
+                            `<p class="text-gray-500 italic text-xs mt-1 break-words">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
                         : ''}
                     </div>
                 </div>
