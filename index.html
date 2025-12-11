@@ -283,7 +283,7 @@
             <p class="text-sm">
                 Zusätzlich zur Intensität können Sie nun die Schmerzregion(en) (Oben, Mitte, Unten) erfassen.
             </p>
-            <p class="font-semibold mt-2">Vitalfunktionen (NEU):</p>
+            <p class="font-semibold mt-2">Vitalfunktionen:</p>
             <p class="text-sm">
                 Optional können Puls, Gewicht, Blutzucker und Blutdruck (Systolisch/Diastolisch) erfasst werden.
             </p>
@@ -301,7 +301,7 @@
             <p class="text-sm">
                 Sie können den multivariaten Verlauf Ihrer Stimmung, der Schmerzintensität und der Temperatur in einem übersichtlichen Liniendiagramm analysieren, um tiefere Zusammenhänge, Muster und Trends in Ihrem Wohlbefinden zu erkennen.
             </p>
-            <p class="font-semibold mt-2">Vitalfunktionen-Analyse (Linien-Chart NEU):</p>
+            <p class="font-semibold mt-2">Vitalfunktionen-Analyse (Linien-Chart):</p>
             <p class="text-sm">
                 Ein dediziertes Diagramm zeigt die Entwicklung von Puls, Gewicht, Blutzucker und Blutdruck über die Zeit.
             </p>
@@ -442,21 +442,21 @@
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDateEl.value);
         
         if (userLatitude === null || userLongitude === null) {
-            // Dies ist der Fall, wenn Geolocation dauerhaft fehlschlägt oder abgelehnt wird.
+
             weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
         } else if (weather.temperature !== null) {
-            // Erfolgreich Daten für den Zeitraum gefunden.
+
             weatherStatusEl.textContent = `✅ Wetter für ${selectedPeriod}: ${weather.temperature}°C, ${weather.weatherCondition}`;
         } else if (currentTemperatureData === null || currentTemperatureData.length === 0) {
-            // Standort erfolgreich, aber Daten noch nicht geladen (wird in fetchWeather/Data behoben)
+
             weatherStatusEl.textContent = 'Lade Wetterdaten...'; 
         } else {
-            // Standort und Daten sind da, aber kein exaktes Match für den Zeitraum gefunden (sehr unwahrscheinlich bei 14-Tage-Abruf).
+
             weatherStatusEl.textContent = '⚠️ Keine präzisen Wetterdaten für diese Zeit gefunden.';
         }
     }
     
-    // KORRIGIERTE FUNKTION
+
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
         if (lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
@@ -465,8 +465,8 @@
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
             if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
-                // weatherStatusEl.textContent = '✅ Wetterdaten bereit.'; // Entfernt, wird jetzt von neuer Funktion gehandhabt
-                updateWeatherDisplayForSelectedPeriod(); // NEU: Aktualisiert Anzeige für den gewählten Zeitraum
+
+                updateWeatherDisplayForSelectedPeriod();
                 checkFormValidity(); 
                 return;
             }
@@ -495,12 +495,12 @@
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
-            updateWeatherDisplayForSelectedPeriod(); // NEU: Aktualisiert die finale Anzeige nach Fehler
+            updateWeatherDisplayForSelectedPeriod();
             checkFormValidity(); 
         }
     }
 
-    // KORRIGIERTE FUNKTION
+
     async function fetchWeatherData(lat, lon, startDateStr) {
         const startDate = new Date(startDateStr);
         const endDate = new Date(startDate);
@@ -521,17 +521,16 @@
             currentTemperatureData = hourlyData; 
             lastFetchedDate = startDateStr; 
             
-            // Wetterstatus-Anzeige wird jetzt über die neue Funktion aktualisiert
-            updateWeatherDisplayForSelectedPeriod(); // NEU: Zeigt jetzt die Perioden-spezifische Info an
+
+            updateWeatherDisplayForSelectedPeriod();
             checkFormValidity(); 
         } catch (error) {
             console.error("Fehler beim Abrufen der Wetterdaten:", error);
             weatherStatusEl.textContent = '❌ Fehler beim Laden der Wetterdaten. Eintrag ohne Temperatur/Wetterzustand.';
             checkFormValidity(); 
-            updateWeatherDisplayForSelectedPeriod(); // NEU: Damit die Anzeige nach dem Fehler konsistent bleibt
+            updateWeatherDisplayForSelectedPeriod();
         }
     }
-    // ENDE KORRIGIERTE FUNKTIONEN
 
     function getWeatherDataForPeriod(period, selectedDateStr) { 
         if (!selectedDateStr || !currentTemperatureData || currentTemperatureData.length === 0 || !period) {
@@ -599,7 +598,7 @@
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
             fetchWeather(entryDateEl.value); 
-            updateWeatherDisplayForSelectedPeriod(); // Aktualisiert die Anzeige, falls der Zeitraum gesetzt ist.
+            updateWeatherDisplayForSelectedPeriod();
         });
 
         timePeriodsEl.addEventListener('click', (e) => {
@@ -610,10 +609,8 @@
                 btn.classList.add('selected-period');
                 checkFormValidity();
                 
-                // SOFORTIGE AKTION: Aktualisiere die Wetteranzeige basierend auf dem gewählten Zeitraum
                 updateWeatherDisplayForSelectedPeriod(); 
 
-                // Prüfe, ob neue Wetterdaten für das gewählte Datum geladen werden müssen
                 if (entryDateEl.value) { 
                     fetchWeather(entryDateEl.value); 
                 }
@@ -750,7 +747,7 @@
                 statusMessageEl.textContent = '';
                 fetchWeather(entryDateEl.value); 
                 preselectTimePeriod(); 
-                updateWeatherDisplayForSelectedPeriod(); // Initialen Status nach Speichern setzen
+                updateWeatherDisplayForSelectedPeriod();
             }, 1500);
 
         } catch (error) {
