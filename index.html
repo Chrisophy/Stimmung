@@ -7,9 +7,9 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <title>Stimmungs- & Vital-Tagebuch (Lokal)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.css"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        @import url('css2.css');
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
         .mood-icon { font-size: 2.5rem; line-height: 1; transition: transform 0.2s, box-shadow 0.2s; }
         .mood-icon:hover { transform: scale(1.1); }
@@ -331,7 +331,7 @@
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js"></script>
+<script src="chart.umd.js"></script>
 
 <script>
     const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
