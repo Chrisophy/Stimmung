@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stimmungs- & Vital-Tagebuch (Lokal)</title>
-    <link rel="manifest" href="./manifest.json"> 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
@@ -1557,18 +1556,6 @@
 
     setupFormListeners(); 
     setupApp(); 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-      
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .then(registration => {
-            console.log('ServiceWorker registriert mit Scope:', registration.scope);
-          })
-          .catch(error => {
-            console.error('ServiceWorker Registrierung fehlgeschlagen:', error);
-          });
-      });
-    }    
 </script>
 </body>
 </html>
