@@ -1556,6 +1556,18 @@
 
     setupFormListeners(); 
     setupApp(); 
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+      
+        navigator.serviceWorker.register('/Stimmung/sw.js', { scope: '/Stimmung/' })
+          .then(registration => {
+            console.log('ServiceWorker registriert mit Scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('ServiceWorker Registrierung fehlgeschlagen:', error);
+          });
+      });
+    }    
 </script>
 </body>
 </html>
