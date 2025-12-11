@@ -1559,7 +1559,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
       
-        navigator.serviceWorker.register('/Stimmung/sw.js', { scope: '/Stimmung/' })
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
           .then(registration => {
             console.log('ServiceWorker registriert mit Scope:', registration.scope);
           })
