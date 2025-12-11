@@ -472,7 +472,7 @@
     
     // Globale Zähler für die Retry-Logik der Geolocation
     let retryCount = 0; 
-    const MAX_RETRIES = 1; // Maximal ein weiterer Versuch nach dem ersten Timeout
+    const MAX_RETRIES = 2; // Maximal zwei weitere Versuche nach dem ersten Timeout
 
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
@@ -505,9 +505,9 @@
             // Standort abfragen, wenn er noch nicht bekannt ist oder abgelaufen (für 14-Tage-Check siehe oben)
             if (userLatitude === null || !currentTemperatureData || !lastFetchedDate || retryCount > 0) { 
                 const position = await new Promise((resolve, reject) => {
-                    // WICHTIG: Timeout auf 2 Sekunden (2000 ms) gesetzt
+                    // WICHTIG: Timeout auf 5 Sekunden (5000 ms) gesetzt
                     navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                        timeout: 2000, // <--- HIER AUF 2000ms GEÄNDERT
+                        timeout: 5000, // <--- HIER AUF 5000ms GEÄNDERT
                         enableHighAccuracy: false 
                     });
                 });
@@ -522,12 +522,12 @@
         } catch (error) {
             console.error("Fehler beim Abrufen des Standorts:", error);
             
-            // NEUE LOGIK FÜR RETRY BEI TIMEOUT (2-Sekunden-Limit)
+            // LOGIK FÜR RETRY BEI TIMEOUT (5-Sekunden-Limit)
             if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
                 retryCount++; // Zähler erhöhen
-                console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES + 1}). Starte sofort erneute Abfrage...`);
+                console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES}). Starte sofort erneute Abfrage...`);
                 // Sofortiger erneuter Aufruf der Funktion
-                weatherStatusEl.textContent = `Standort-Timeout (2s)! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
+                weatherStatusEl.textContent = `Standort-Timeout! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
                 return fetchWeather(targetDateStr); // Sofortiger erneuter Aufruf
             }
             
@@ -536,7 +536,7 @@
                  weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
             } else if (error.code === error.TIMEOUT) {
                  // Dies wird nur erreicht, wenn MAX_RETRIES überschritten ist
-                 weatherStatusEl.textContent = '❌ Standortabfrage-Timeout nach 2 Versuchen. Eintrag ohne Wetter.';
+                 weatherStatusEl.textContent = `❌ Standortabfrage-Timeout nach ${MAX_RETRIES + 1} Versuchen. Eintrag ohne Wetter.`;
             } else {
                  weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
             }
