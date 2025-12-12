@@ -688,7 +688,7 @@
         
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
-        exportButton.addEventListener('click', exportData); 
+        exportButton.addEventListener('click', exportData); // Geändert
         exportChartButton.addEventListener('click', () => exportChart('moodChart')); 
         exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); 
         exportVitalChartButton.addEventListener('click', () => exportChart('vitalChart'));
@@ -1077,23 +1077,46 @@
         }
     }
     
+    // START DER KORRIGIERTEN EXPORT-FUNKTION
     function exportData() {
         const allEntries = allStoredEntries;
-        if (allEntries.length === 0) { alert("Es sind keine Einträge zum Exportieren vorhanden!"); return; }
+        
+        if (allEntries.length === 0) { 
+            alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
+            return; 
+        }
+
+        // Fügen Sie hier eine Bestätigung hinzu, um den irreführenden Erfolgs-Alert nach dem Abbrechen zu vermeiden.
+        const now = new Date();
+        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
+        
+        if (!confirm(`Möchten Sie jetzt ein Backup aller ${allEntries.length} Einträge erstellen (als ${filename})?`)) {
+            // Wenn der Benutzer "Abbrechen" wählt, beenden wir die Funktion,
+            // und es wird keine falsche Erfolgsmeldung angezeigt.
+            return;
+        }
+
         const dataStr = JSON.stringify(allEntries, null, 2); 
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        const now = new Date();
-        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
+        
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
+        
+        // Auslösen des Downloads. Der Browser fragt hier den Benutzer.
         a.click();
+        
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        alert(`Daten erfolgreich als ${filename} exportiert.`);
+        
+        // ACHTUNG: Der Alert am Ende wurde entfernt, da er nicht weiß, ob der Benutzer auf "Abbrechen" klickt.
+        // Die Browser-Meldung für den Download/Speichern ist die einzige zuverlässige Bestätigung.
+        // Optional könnte man eine kurze Meldung anzeigen, dass der Download ausgelöst wurde.
+        // alert(`Datenexport (${filename}) wurde ausgelöst. Bitte überprüfen Sie Ihren Downloads-Ordner.`);
     }
+    // ENDE DER KORRIGIERTEN EXPORT-FUNKTION
 
     function importData() {
         const file = jsonFileInput.files[0];
