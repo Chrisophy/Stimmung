@@ -444,73 +444,53 @@
         allStoredEntries = loadEntriesFromLocalStorage(); 
         preselectTimePeriod(); 
         renderSortedHistory(allStoredEntries, true); 
-        // Initialer Wetter-Abruf startet hier.
         fetchWeather(entryDateEl.value); 
     }
-    
-    /**
-     * NEUE FUNKTION: Aktualisiert die Wetteranzeige am oberen Rand, basierend auf 
-     * dem aktuell gewählten Zeitraum und den geladenen/gecachten Daten.
-     */
     function updateWeatherDisplayForSelectedPeriod() {
-        // Zustand 1: Standortzugriff generell verweigert oder nicht abgefragt
         if (userLatitude === null || userLongitude === null) {
-            // Wenn der Status bereits eine End-Fehlermeldung anzeigt, behalten wir diese bei, 
-            // bis fetchWeather erneut getriggert wird.
             if (weatherStatusEl.textContent.includes('Timeout') || weatherStatusEl.textContent.includes('verweigert')) {
                 return; 
             }
-            // Wenn der Text noch auf "Lade Standort" steht und wir *wissen*, dass es fehlschlug
             if (!weatherStatusEl.textContent.includes('Lade Standort')) {
                  weatherStatusEl.textContent = 'Standort nicht verfügbar. Eintrag ohne Wetter.';
             }
             return;
         }
 
-        // Zustand 2: Zeitraum noch nicht gewählt
         if (!selectedPeriod) {
             weatherStatusEl.textContent = 'Wählen Sie einen Zeitraum für die Wetterinformation.';
             return;
         }
-        
-        // Zustand 3: Wetterdaten sind da
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDateEl.value);
         if (weather.temperature !== null) {
             weatherStatusEl.textContent = `✅ Wetter für ${selectedPeriod}: ${weather.temperature}°C, ${weather.weatherCondition}`;
         } else if (currentTemperatureData === null || currentTemperatureData.length === 0) {
-            // Zustand 4: Standort ist da, aber Wetterdaten laden noch
             weatherStatusEl.textContent = 'Lade Wetterdaten...'; 
         } else {
-            // Zustand 5: Standort ist da, Wetterdaten sind geladen, aber für diesen Zeitpunkt nicht gefunden
             weatherStatusEl.textContent = '⚠️ Keine präzisen Wetterdaten für diese Zeit gefunden.';
         }
     }
     
-    // Globale Zähler für die Retry-Logik der Geolocation
     let retryCount = 0; 
-    const MAX_RETRIES = 2; // Maximal zwei weitere Versuche nach dem ersten Timeout (insgesamt 3 Versuche)
+    const MAX_RETRIES = 2; 
 
     async function fetchWeather(targetDateStr) {
         if (!targetDateStr) return; 
         
-        // 1. Lokalen Cache prüfen (Wetterdaten sind für 14 Tage ab der letzten Abfrage gültig)
-        // Dieser Teil prüft, ob wir den Standort haben und die Wetterdaten noch aktuell sind.
         if (userLatitude !== null && userLongitude !== null && lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
             const targetTime = new Date(targetDateStr).getTime();
             const loadedStartTime = new Date(lastFetchedDate).getTime();
             const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
             const loadedEndTime = loadedStartTime + fourteenDaysInMs;
             
-            // Wenn das Zieldatum im geladenen 14-Tage-Fenster liegt, verwenden wir den Cache
             if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
                 updateWeatherDisplayForSelectedPeriod();
                 checkFormValidity(); 
-                retryCount = 0; // Wichtig: Wenn Cache genutzt, Reset!
+                retryCount = 0;
                 return;
             }
         }
         
-        // 2. Geolocation starten, wenn kein Standort bekannt ODER wenn wir einen Retry starten
         if (userLatitude === null || retryCount > 0) { 
             if (!navigator.geolocation) {
                 weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
@@ -520,7 +500,6 @@
                 return;
             }
 
-            // Status-Update beim ersten Versuch oder beim Retry
             if (retryCount === 0) {
                 weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
             } else {
@@ -529,31 +508,26 @@
 
             try {
                 const position = await new Promise((resolve, reject) => {
-                    // WICHTIG: Timeout auf 5 Sekunden (5000 ms) gesetzt
                     navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                        timeout: 5000, // <--- HIER AUF 5000ms GEÄNDERT
+                        timeout: 5000,
                         enableHighAccuracy: false 
                     });
                 });
                 userLatitude = position.coords.latitude; 
                 userLongitude = position.coords.longitude; 
-                retryCount = 0; // Erfolg -> Zähler zurücksetzen
+                retryCount = 0;
             } catch (error) {
                 console.error("Fehler beim Abrufen des Standorts:", error);
                 
-                // LOGIK FÜR RETRY BEI TIMEOUT (5-Sekunden-Limit)
                 if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
-                    retryCount++; // Zähler erhöhen
+                    retryCount++; 
                     console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES}). Starte sofort erneute Abfrage...`);
-                    // Sofortiger erneuter Aufruf der Funktion (Retry)
                     return fetchWeather(targetDateStr); 
                 }
-                
-                // Fehlerbehandlung für endgültigen Fehler/Verweigerung/MAX_RETRIES überschritten
+
                 if (error.code === error.PERMISSION_DENIED) {
                      weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
                 } else if (error.code === error.TIMEOUT) {
-                     // Endgültiges Timeout nach MAX_RETRIES
                      weatherStatusEl.textContent = `❌ Standortabfrage-Timeout nach ${MAX_RETRIES + 1} Versuchen. Eintrag ohne Wetter.`;
                 } else {
                      weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
@@ -562,14 +536,13 @@
                 userLatitude = null; 
                 userLongitude = null; 
                 currentTemperatureData = null; 
-                retryCount = 0; // Fehler -> Zähler zurücksetzen, um neuen Versuch zu erlauben
+                retryCount = 0;
                 updateWeatherDisplayForSelectedPeriod(); 
                 checkFormValidity(); 
                 return; 
             }
         } 
         
-        // 3. Wetterdaten abrufen, wenn Standort erfolgreich ermittelt
         weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
         await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
         updateWeatherDisplayForSelectedPeriod(); 
@@ -673,7 +646,6 @@
     function setupFormListeners() {
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
-            // Beim Ändern des Datums immer Geolocation neu versuchen, um aktuelle Wetterdaten zu laden
             fetchWeather(entryDateEl.value); 
             updateWeatherDisplayForSelectedPeriod();
         });
@@ -689,7 +661,6 @@
                 updateWeatherDisplayForSelectedPeriod(); 
 
                 if (entryDateEl.value) { 
-                    // Führt fetchWeather erneut aus, falls Geolocation beim ersten Laden fehlgeschlagen ist oder Daten neu geladen werden müssen
                     fetchWeather(entryDateEl.value); 
                 }
             }
@@ -798,44 +769,19 @@
         }
 
         try {
-            saveEntriesToLocalStorage(allStoredEntries);
-            statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
-            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-            
-            populateYearFilter(allStoredEntries); 
-            if (typeof renderMoodChart !== 'undefined') { renderMoodChart(allStoredEntries); }
-            if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(allStoredEntries); }
-            if (typeof renderVitalChart !== 'undefined') { renderVitalChart(allStoredEntries); }
-            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value); 
+        saveEntriesToLocalStorage(allStoredEntries);
+        statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+        
+        setTimeout(() => {
+            window.location.reload(); 
+        }, 1500);
 
-            setTimeout(() => {
-                entryDateEl.value = new Date().toISOString().split('T')[0]; 
-                noteEl.value = '';
-                selectedPeriod = null;
-                selectedMood = null;
-                selectedPain = null; 
-                pulsEl.value = '';
-                gewichtEl.value = '';
-                blutzuckerEl.value = '';
-                blutdruckSysEl.value = '';
-                blutdruckDiaEl.value = '';
-                document.querySelectorAll('.period-button, .mood-icon, .pain-button').forEach(el => el.classList.remove('selected-period', 'selected-mood', 'selected-pain')); 
-                painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-                checkFormValidity();
-                statusMessageEl.textContent = '';
-                // Setze den Wetter-Status neu und versuche, Daten für das neue Datum zu laden
-                preselectTimePeriod(); 
-                fetchWeather(entryDateEl.value); 
-            }, 1500);
-
-        } catch (error) {
-            console.error("Fehler beim Speichern des Eintrags:", error);
-            statusMessageEl.textContent = 'Fehler beim Speichern. (Speicher voll?)';
-            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-        } finally {
-            saveButton.disabled = false;
-        }
+    } catch (error) {
+    } finally {
+        saveButton.disabled = false;
     }
+}
 
     function loadHistoryAndStartListening() {
         renderSortedHistory(allStoredEntries, true);
@@ -1482,7 +1428,6 @@
         const ctx = vitalChartEl.getContext('2d');
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
 
-        // KORREKTUREN DER CHART FARBEN HIER:
         const PULS_COLOR_CHART = '#10b981';   // Green 600
         const GEWICHT_COLOR_CHART = '#db2777'; // Pink 600 (Korrektur)
         const BLUTZUCKER_COLOR_CHART = '#d97706'; // Amber 700 (Korrektur)
