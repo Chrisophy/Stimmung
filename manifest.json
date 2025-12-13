@@ -1,7 +1,7 @@
 {
   "name": "Stimmungs-Tagebuch",
   "short_name": "Tagebuch",
-  "description": "Dein lokales Stimmungs- und Vital-Tagebuch.",
+  "description": "Dein lokales Stimmungs-Tagebuch",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",

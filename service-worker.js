@@ -1,12 +1,13 @@
-const CACHE_NAME = 'stimmungstagebuch-cache-v2';
+const CACHE_NAME = 'stimmungstagebuch-cache-v3';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   '/Stimmung/', 
   '/Stimmung/index.html',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js', 
+  './UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2',
+  './chart.umd.js',
+  './tailwind.css',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png'
 ];

@@ -6,10 +6,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
-    <title>Stimmungs- & Vital-Tagebuch (Lokal)</title>
-    <script src="tailwind.css"></script> 
+    <title>Stimmungs-Tagebuch</title>
+    <script src="tailwind.css"></script>
     <style>
-        @import url('css2.css');
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2') format('woff2');
+
+}
+
+
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
         .mood-icon { font-size: 2.5rem; line-height: 1; transition: transform 0.2s, box-shadow 0.2s; }
         .mood-icon:hover { transform: scale(1.1); }
@@ -47,7 +57,7 @@
 
 <div id="app" class="min-h-screen p-4 sm:p-6 max-w-lg mx-auto bg-white shadow-xl">
     <header class="text-center mb-6 pt-4">
-        <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs- & Vital-Tagebuch</h1>
+        <h1 class="text-3xl font-extrabold text-indigo-700">Dein persönliches Stimmungs-Tagebuch</h1>
         <p class="text-gray-500 mt-1">Wie geht es Dir?</p>
         <p id="weather-status" class="text-center text-sm text-gray-400 mt-2">Lade Standort...</p> 
     </header>
@@ -739,7 +749,7 @@
         });
 
         helpButton.addEventListener('click', showHelpModal);
-        closeModalButton.addEventListener('click', closeModalButton);
+        closeModalButton.addEventListener('click', closeHelpModal);
         helpModal.addEventListener('click', (e) => {
             if (e.target === helpModal) { closeHelpModal(); }
         });
