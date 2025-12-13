@@ -58,16 +58,16 @@
             bottom: 20px;    /* 20px vom unteren Rand */
             right: 20px;     /* 20px vom rechten Rand */
             z-index: 1001;   /* Über allen anderen Elementen */
-            background-color: #4f46e5;
+            background-color: rgba(255,255,255,0.2)
             color: white;
-            padding: 1rem;
-            border-radius: 9999px; /* Macht den Button kreisförmig */
+            padding: 0.5rem;
+            border-radius: 9px; /* Macht den Button kreisförmig */
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.2s, transform 0.1s;
             display: none; /* Standardmäßig versteckt, wird per JS eingeblendet */
         }
         .scroll-to-top:hover {
-            background-color: #3730a3;
+            background-color: rgba(255,255,255,0.2);
         }
         .scroll-to-top:active {
             transform: scale(0.95);
@@ -155,21 +155,40 @@
         <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p class="font-medium mb-3 text-gray-700">5. Vitalfunktionen (optional):</p>
             <div class="space-y-3">
+                
+                <div class="flex space-x-3">
+                    <div class="flex-1">
+                        <label for="geburtsdatum" class="block text-xs font-medium text-gray-500">Geburtsdatum</label>
+                        <input type="date" id="geburtsdatum" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div class="flex-1">
+                        <label for="koerpergroesse" class="block text-xs font-medium text-gray-500">Körpergröße (cm)</label>
+                        <input type="number" id="koerpergroesse" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 175" min="50" step="1">
+                    </div>
+                </div>
+
+                <div class="flex space-x-3">
+                    <div class="flex-1">
+                        <label for="gewicht" class="block text-xs font-medium text-gray-500">Gewicht (kg)</label>
+                        <input type="number" id="gewicht" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500" placeholder="z.B. 75.5" step="0.1" min="10">
+                    </div>
+                    <div class="flex-1">
+                        <label for="bmi-display" class="block text-xs font-medium text-gray-500">BMI</label>
+                        <input type="text" id="bmi-display" class="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-center font-bold" value="N/A" readonly>
+                    </div>
+                </div>
+                
                 <div class="flex space-x-3">
                     <div class="flex-1">
                         <label for="puls" class="block text-xs font-medium text-gray-500">Puls (BPM)</label>
                         <input type="number" id="puls" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 65" min="20">
                     </div>
                     <div class="flex-1">
-                        <label for="gewicht" class="block text-xs font-medium text-gray-500">Gewicht (kg)</label>
-                        <input type="number" id="gewicht" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500" placeholder="z.B. 75.5" step="0.1" min="10">
-                    </div>
-                </div>
-                <div class="flex space-x-3">
-                    <div class="flex-1">
                         <label for="blutzucker" class="block text-xs font-medium text-gray-500">Blutzucker (mg/dL)</label>
                         <input type="number" id="blutzucker" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="z.B. 120" min="20">
                     </div>
+                </div>
+                <div class="flex space-x-3">
                     <div class="flex-1">
                         <label for="blutdruck" class="block text-xs font-medium text-gray-500">Blutdruck (Sys/Dia)</label>
                         <div class="flex space-x-1">
@@ -334,6 +353,7 @@
             <p class="font-semibold mt-2">Vitalfunktionen:</p>
             <p class="text-sm">
                 Optional können Puls, Gewicht, Blutzucker und Blutdruck (Systolisch/Diastolisch) erfasst werden.
+                **NEU:** Geburtsdatum und Körpergröße werden gespeichert, um den Body-Mass-Index (BMI) zu berechnen.
             </p>
             <p class="font-semibold mt-2">Automatische Ergänzung (Wetter):</p>
             <p class="text-sm">
@@ -376,7 +396,7 @@
 </div>
 
 <button id="scrollToTopBtn" class="scroll-to-top" title="Zum Seitenanfang scrollen">
-    ⬆️ 
+    ⬆️
 </button>
 
 
@@ -384,10 +404,15 @@
 
 <script>
     const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
+    // NEU: Key für dauerhafte Benutzerinformationen (Geburtsdatum, Größe)
+    const USER_VITAL_INFO_KEY = 'user_vital_info'; 
     let selectedPeriod = null;
     let selectedMood = null;
     let selectedPain = null; 
     let allStoredEntries = []; 
+    // NEU: Speichert Geburtsdatum und Größe, die dauerhaft bleiben sollen
+    let userVitalInfo = {}; 
+
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
     let currentTemperatureData = null; 
     let userLatitude = null; 
@@ -395,7 +420,7 @@
     let lastFetchedDate = null; 
     const PERIOD_TIME_MAP = { 'Nacht': 3, 'Morgen': 9, 'Mittag': 13, 'Abend': 19 };
     const AUTO_PERIOD_MAP = [ { name: 'Nacht', startHour: 0, endHour: 5 }, { name: 'Morgen', startHour: 5, endHour: 12 }, { name: 'Mittag', startHour: 12, endHour: 18 }, { name: 'Abend', startHour: 18, endHour: 24 } ];
-    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer ??️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
+    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer 🌦️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
     const PAIN_REGION_NAMES = { 'oben': 'Oben', 'mitte': 'Mitte', 'unten': 'Unten' };
     const entryDateEl = document.getElementById('entry-date'); 
     const timePeriodsEl = document.getElementById('time-periods');
@@ -429,11 +454,38 @@
     const helpButton = document.getElementById('help-button');
     const helpModal = document.getElementById('help-modal');
     const closeModalButton = document.getElementById('close-modal');
+    // NEU: Elemente für BMI-Funktionalität
+    const geburtsdatumEl = document.getElementById('geburtsdatum');
+    const koerpergroesseEl = document.getElementById('koerpergroesse');
+    const bmiDisplayEl = document.getElementById('bmi-display');
+
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
     const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
     window.MOOD_NAMES = { 'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht' };
     window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
     const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
+
+    // NEU: Lädt dauerhafte Benutzerinformationen
+    function loadUserVitalInfo() {
+        try {
+            const data = localStorage.getItem(USER_VITAL_INFO_KEY);
+            userVitalInfo = data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error("Fehler beim Laden der Benutzer-Vitaldaten:", e);
+            userVitalInfo = {};
+        }
+    }
+    
+    // NEU: Speichert dauerhafte Benutzerinformationen
+    function saveUserVitalInfo(geburtsdatum, koerpergroesse) {
+        userVitalInfo.geburtsdatum = geburtsdatum;
+        userVitalInfo.koerpergroesse = koerpergroesse;
+        try {
+            localStorage.setItem(USER_VITAL_INFO_KEY, JSON.stringify(userVitalInfo));
+        } catch (e) {
+            console.error("Fehler beim Speichern der Benutzer-Vitaldaten:", e);
+        }
+    }
 
     function loadEntriesFromLocalStorage() {
         try {
@@ -454,6 +506,34 @@
         }
     }
     
+    // NEU: Funktion zur BMI-Berechnung
+    function calculateBMI(weightKg, heightCm) {
+        if (weightKg > 0 && heightCm > 0) {
+            const heightM = heightCm / 100;
+            // BMI Formel: Gewicht (kg) / Größe (m)²
+            const bmi = weightKg / (heightM * heightM); 
+            return bmi.toFixed(1);
+        }
+        return 'N/A';
+    }
+
+    // NEU: Funktion zur Anzeige des BMI
+    function calculateAndDisplayBMI() {
+        const weight = getNumericValue(gewichtEl);
+        const height = getNumericValue(koerpergroesseEl);
+        const bmi = calculateBMI(weight, height);
+        
+        bmiDisplayEl.value = bmi;
+        
+        // Optionale Farbgebung/Hinweise basierend auf BMI-Wert (WHO-Klassifikation)
+        bmiDisplayEl.className = `w-full p-2 border border-gray-300 rounded-lg text-center font-bold 
+            ${bmi === 'N/A' ? 'bg-gray-100' : 
+            bmi < 18.5 ? 'bg-blue-200 text-blue-800' : 
+            bmi < 25 ? 'bg-green-200 text-green-800' : 
+            bmi < 30 ? 'bg-yellow-200 text-yellow-800' : 
+            'bg-red-200 text-red-800'}`;
+    }
+
     function preselectTimePeriod() {
         document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
         selectedPeriod = null; 
@@ -493,10 +573,16 @@
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
         pulsEl.value = '';
         gewichtEl.value = '';
+        // NEU: Geburtsdatum und Größe bleiben, aber sind änderbar
+        // geburtsdatumEl.value = ''; // Wird jetzt von loadUserVitalInfo gesetzt
+        // koerpergroesseEl.value = ''; // Wird jetzt von loadUserVitalInfo gesetzt
         blutzuckerEl.value = '';
         blutdruckSysEl.value = '';
         blutdruckDiaEl.value = '';
         noteEl.value = '';
+
+        // BMI zurücksetzen
+        calculateAndDisplayBMI();
         
         // Erneute Vorauswahl der Tageszeit (basierend auf aktueller Uhrzeit)
         preselectTimePeriod(); 
@@ -509,7 +595,14 @@
 
     function setupApp() {
         allStoredEntries = loadEntriesFromLocalStorage(); 
+        loadUserVitalInfo(); // NEU: Laden der statischen Benutzerdaten
+        
+        // NEU: Vorbelegen der dauerhaften Felder
+        geburtsdatumEl.value = userVitalInfo.geburtsdatum || '';
+        koerpergroesseEl.value = userVitalInfo.koerpergroesse || '';
+        
         preselectTimePeriod(); 
+        calculateAndDisplayBMI(); // NEU: BMI initial berechnen (falls Gewicht gespeichert ist)
         renderSortedHistory(allStoredEntries, true); 
         fetchWeather(entryDateEl.value); 
     }
@@ -721,6 +814,11 @@
     }
 
     function setupFormListeners() {
+        // NEU: Listener für Geburtsdatum, Größe und Gewicht zur BMI-Berechnung
+        geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
+        koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
+        gewichtEl.addEventListener('input', calculateAndDisplayBMI);
+        
         entryDateEl.addEventListener('change', () => {
             checkFormValidity();
             fetchWeather(entryDateEl.value); 
@@ -798,6 +896,19 @@
 
         checkFormValidity();
     }
+    
+    // NEU: Funktion zur Altersberechnung
+    function calculateAge(birthdateString) {
+        if (!birthdateString) return null;
+        const today = new Date();
+        const birthDate = new Date(birthdateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
 
     function getSelectedPainRegions() {
         const selectedRegions = [];
@@ -827,6 +938,17 @@
         const docId = `${entryDate}_${selectedPeriod}`; 
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
         const painRegions = getSelectedPainRegions(); 
+        
+        // NEU: Statische Vitaldaten für dauerhafte Speicherung abrufen
+        const geburtsdatum = geburtsdatumEl.value.trim() || null;
+        const koerpergroesse = getNumericValue(koerpergroesseEl);
+        
+        // NEU: Dauerhafte Speicherung der statischen Vitaldaten
+        saveUserVitalInfo(geburtsdatum, koerpergroesse); 
+
+        const gewicht = getNumericValue(gewichtEl);
+        const bmi = calculateBMI(gewicht, koerpergroesse);
+        const alter = calculateAge(geburtsdatum);
 
         const newEntry = {
             id: docId, 
@@ -835,8 +957,13 @@
             mood: selectedMood,
             pain: selectedPain, 
             schmerzRegionen: painRegions, 
+            // NEU: Zusätzliche Vitaldaten im Eintrag speichern
+            geburtsdatum: geburtsdatum, 
+            koerpergroesse: koerpergroesse, 
+            alter: alter, 
+            gewicht: gewicht,
+            bmi: bmi,
             puls: getNumericValue(pulsEl), 
-            gewicht: getNumericValue(gewichtEl),
             blutzucker: getNumericValue(blutzuckerEl),
             blutdruckSys: getNumericValue(blutdruckSysEl),
             blutdruckDia: getNumericValue(blutdruckDiaEl),
@@ -951,6 +1078,10 @@
         let gewichtCount = 0;
         let blutzuckerSum = 0;
         let blutzuckerCount = 0;
+        // NEU: BMI Durchschnitt
+        let bmiSum = 0;
+        let bmiCount = 0;
+
 
         entries.forEach(entry => {
             moodSum += window.MOOD_VALUES[entry.mood] || 3;
@@ -971,6 +1102,11 @@
                 blutzuckerSum += entry.blutzucker;
                 blutzuckerCount++;
             }
+            // NEU: BMI
+             if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A' && !isNaN(parseFloat(entry.bmi))) {
+                bmiSum += parseFloat(entry.bmi);
+                bmiCount++;
+            }
         });
 
         const avgMood = (moodSum / entries.length).toFixed(2);
@@ -979,6 +1115,9 @@
         const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(0) : 'N/A';
         const avgGewicht = gewichtCount > 0 ? (gewichtSum / gewichtCount).toFixed(1) : 'N/A';
         const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(0) : 'N/A';
+        // NEU: Durchschnitt BMI
+        const avgBMI = bmiCount > 0 ? (bmiSum / bmiCount).toFixed(1) : 'N/A';
+
 
         function createStatCard(title, value, unit, color) {
             const card = document.createElement('div');
@@ -996,6 +1135,8 @@
         const PULS_COLOR = '#10b981';   // Green 600
         const GEWICHT_COLOR = '#db2777'; // Pink 600
         const BLUTZUCKER_COLOR = '#d97706'; // Amber 700 
+        const BMI_COLOR = '#4c51bf'; // Indigo 700 (NEU)
+
 
         const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', MOOD_COLOR );
         const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
@@ -1003,6 +1144,8 @@
         const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
         const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', GEWICHT_COLOR );
         const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', BLUTZUCKER_COLOR );
+        // NEU: BMI Card
+        const bmiCard = createStatCard( 'Ø BMI', avgBMI, '', BMI_COLOR );
 
         statsContainerEl.innerHTML = ''; 
         statsContainerEl.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6'; 
@@ -1012,6 +1155,7 @@
         statsContainerEl.appendChild(pulsCard);
         statsContainerEl.appendChild(gewichtCard);
         statsContainerEl.appendChild(blutzuckerCard);
+        statsContainerEl.appendChild(bmiCard); // NEU: BMI Card
     }
 
     function renderSortedHistory(entries, updateChartFilter = true) {
@@ -1091,12 +1235,19 @@
         let vitalData = [];
         if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
         if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
+        if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); // NEU: BMI Anzeige
         if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
         if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
              vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
         }
+        
+        // NEU: Anzeige von Alter (optional)
+        const alterDisplay = entry.alter !== undefined && entry.alter !== null
+                            ? `<span class="text-xs font-medium text-gray-500 ml-3">Alter: ${entry.alter}</span>`
+                            : '';
+        
         const vitalLine = vitalData.length > 0 
-                            ? `<p class="text-xs text-yellow-700 font-medium mt-1">${vitalData.join(' · ')}</p>` 
+                            ? `<p class="text-xs text-yellow-700 font-medium mt-1 flex items-center">${vitalData.join(' · ')}${alterDisplay}</p>` 
                             : '';
 
         let weatherLine = '';
@@ -1142,6 +1293,16 @@
 
     function resetData() {
         if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) { return; }
+        // NEU: Fragen, ob auch die statischen Vitaldaten gelöscht werden sollen
+        if (confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?")) {
+            try {
+                localStorage.removeItem(USER_VITAL_INFO_KEY);
+                userVitalInfo = {};
+            } catch (e) {
+                 console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
+            }
+        }
+
         resetButton.disabled = true;
         resetStatusEl.textContent = 'Lösche alle Daten...';
         resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
@@ -1153,6 +1314,8 @@
             yearFilterEl.value = 'all';
             monthFilterEl.value = 'all';
             renderSortedHistory([], true); 
+            // NEU: Formular zurücksetzen, um die neuen (oder gelöschten) statischen Daten zu zeigen
+            setupApp(); 
         } catch (error) {
             console.error("Fehler beim Löschen der Einträge:", error);
             resetStatusEl.textContent = 'Fehler beim Löschen.';
@@ -1165,8 +1328,18 @@
     
     function exportData() {
         const allEntries = allStoredEntries;
-        if (allEntries.length === 0) { alert("Es sind keine Einträge zum Exportieren vorhanden!"); return; }
-        const dataStr = JSON.stringify(allEntries, null, 2); 
+        // NEU: Hinzufügen der statischen User-Daten zum Export
+        const exportObject = {
+            entries: allEntries,
+            userVitalInfo: userVitalInfo
+        };
+
+        if (allEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
+            alert("Es sind keine Einträge oder Benutzerdaten zum Exportieren vorhanden!"); 
+            return; 
+        }
+
+        const dataStr = JSON.stringify(exportObject, null, 2); 
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const now = new Date();
@@ -1190,16 +1363,42 @@
 
         reader.onload = function(e) {
             try {
-                const importedEntries = JSON.parse(e.target.result);
-                if (!Array.isArray(importedEntries)) { throw new Error("Die Datei ist kein gültiges Array von Einträgen. Erwartet wurde ein JSON-Array ([...])."); }
+                const importedData = JSON.parse(e.target.result);
+                let importedEntries = importedData;
+                let importedUserVitalInfo = {};
+
+                // NEU: Prüfen, ob es sich um das neue Exportformat handelt
+                if (importedData.entries && Array.isArray(importedData.entries)) {
+                    importedEntries = importedData.entries;
+                    importedUserVitalInfo = importedData.userVitalInfo || {};
+                } else if (!Array.isArray(importedEntries)) { 
+                    throw new Error("Die Datei ist kein gültiges Array von Einträgen oder das erwartete JSON-Objekt. Erwartet wurde ein JSON-Array ([...]) oder ein Objekt mit dem Schlüssel 'entries'."); 
+                }
+
                 let entriesAdded = 0;
                 let entriesOverwritten = 0;
 
+                // Einträge zusammenführen/überschreiben
                 importedEntries.forEach(entry => {
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
-                    // **KORREKTUR: Robuste Behandlung fehlender schmerzRegionen beim Import**
+                    // Robuste Behandlung fehlender schmerzRegionen
                     entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
+                    
+                    // NEU: Hinzufügen von BMI, Alter, Größe etc., falls im Import fehlen
+                    // Normalerweise sollten die Daten in der Importdatei komplett sein,
+                    // aber falls ältere Backups importiert werden, könnten diese Felder fehlen.
+                    if (entry.geburtsdatum === undefined && importedUserVitalInfo.geburtsdatum) {
+                        entry.geburtsdatum = importedUserVitalInfo.geburtsdatum;
+                        entry.alter = calculateAge(entry.geburtsdatum);
+                    }
+                    if (entry.koerpergroesse === undefined && importedUserVitalInfo.koerpergroesse) {
+                        entry.koerpergroesse = importedUserVitalInfo.koerpergroesse;
+                    }
+                    if (entry.bmi === undefined) {
+                        entry.bmi = calculateBMI(entry.gewicht, entry.koerpergroesse);
+                    }
+
                     const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
                     if (existingIndex > -1) {
                         allStoredEntries[existingIndex] = entry;
@@ -1209,11 +1408,23 @@
                         entriesAdded++;
                     }
                 });
+                
+                // NEU: Statische Vitaldaten zusammenführen/überschreiben
+                if (importedUserVitalInfo.geburtsdatum || importedUserVitalInfo.koerpergroesse) {
+                    saveUserVitalInfo(
+                        importedUserVitalInfo.geburtsdatum || userVitalInfo.geburtsdatum || null,
+                        importedUserVitalInfo.koerpergroesse || userVitalInfo.koerpergroesse || null
+                    );
+                }
+
 
                 saveEntriesToLocalStorage(allStoredEntries);
                 yearFilterEl.value = 'all';
                 monthFilterEl.value = 'all';
-                renderSortedHistory(allStoredEntries, true);
+                
+                // NEU: App komplett neu einrichten, um alle neuen Daten zu erfassen
+                setupApp(); 
+                
                 importStatusEl.textContent = `Import erfolgreich! ${entriesAdded} neue Einträge hinzugefügt, ${entriesOverwritten} überschrieben.`;
                 importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
             } catch (error) {
@@ -1472,6 +1683,8 @@
                     blutzuckerSum: 0, blutzuckerCount: 0,
                     blutdruckSysSum: 0, blutdruckSysCount: 0,
                     blutdruckDiaSum: 0, blutdruckDiaCount: 0,
+                    // NEU: BMI für Chart-Anzeige
+                    bmiSum: 0, bmiCount: 0,
                 }; 
             }
             if (entry.puls !== null) { acc[dateKey].pulsSum += entry.puls; acc[dateKey].pulsCount++; }
@@ -1479,6 +1692,11 @@
             if (entry.blutzucker !== null) { acc[dateKey].blutzuckerSum += entry.blutzucker; acc[dateKey].blutzuckerCount++; }
             if (entry.blutdruckSys !== null) { acc[dateKey].blutdruckSysSum += entry.blutdruckSys; acc[dateKey].blutdruckSysCount++; }
             if (entry.blutdruckDia !== null) { acc[dateKey].blutdruckDiaSum += entry.blutdruckDia; acc[dateKey].blutdruckDiaCount++; }
+            // NEU: BMI
+            if (entry.bmi !== null && entry.bmi !== 'N/A' && !isNaN(parseFloat(entry.bmi))) {
+                acc[dateKey].bmiSum += parseFloat(entry.bmi);
+                acc[dateKey].bmiCount++;
+            }
             return acc;
         }, {});
 
@@ -1492,10 +1710,11 @@
                 blutzucker: data.blutzuckerCount > 0 ? data.blutzuckerSum / data.blutzuckerCount : null,
                 blutdruckSys: data.blutdruckSysCount > 0 ? data.blutdruckSysSum / data.blutdruckSysCount : null,
                 blutdruckDia: data.blutdruckDiaCount > 0 ? data.blutdruckDiaSum / data.blutdruckDiaCount : null,
+                bmi: data.bmiCount > 0 ? data.bmiSum / data.bmiCount : null, // NEU
             };
         });
 
-        const hasVitalData = chartData.some(d => d.puls || d.gewicht || d.blutzucker || d.blutdruckSys || d.blutdruckDia);
+        const hasVitalData = chartData.some(d => d.puls || d.gewicht || d.blutzucker || d.blutdruckSys || d.blutdruckDia || d.bmi); // NEU: BMI
 
         if (!hasVitalData) {
             vitalChartStatusEl.classList.remove('hidden');
@@ -1516,12 +1735,22 @@
         const ctx = vitalChartEl.getContext('2d');
         const labels = chartData.map(d => window.formatDateShort(d.date)); 
 
-        const PULS_COLOR_CHART = '#10b981';   // Green 600
-        const GEWICHT_COLOR_CHART = '#db2777'; // Pink 600 (Korrektur)
-        const BLUTZUCKER_COLOR_CHART = '#d97706'; // Amber 700 (Korrektur)
-        const BLUTDRUCK_SYS_COLOR_CHART = '#06b6d4'; // Cyan 600
-        const BLUTDRUCK_DIA_COLOR_CHART = '#60a5fa'; // Blue 400
+        const PULS_COLOR_CHART = '#10b981';   
+        const GEWICHT_COLOR_CHART = '#db2777'; 
+        const BLUTZUCKER_COLOR_CHART = '#d97706'; 
+        const BLUTDRUCK_SYS_COLOR_CHART = '#06b6d4'; 
+        const BLUTDRUCK_DIA_COLOR_CHART = '#60a5fa'; 
+        const BMI_COLOR_CHART = '#4f46e5'; // Indigo 600 (NEU)
 
+        // Finde min/max für die BMI-Skala (wenn BMI-Daten vorhanden)
+        const bmiValues = chartData.map(d => d.bmi).filter(v => v !== null);
+        const bmiMin = bmiValues.length > 0 ? Math.floor(Math.min(...bmiValues) - 2) : 15;
+        const bmiMax = bmiValues.length > 0 ? Math.ceil(Math.max(...bmiValues) + 2) : 35;
+        // Max/Min für Gewicht skalieren (optional)
+        const gewichtValues = chartData.map(d => d.gewicht).filter(v => v !== null);
+        const gewichtMin = gewichtValues.length > 0 ? Math.floor(Math.min(...gewichtValues) / 5) * 5 : 50;
+        const gewichtMax = gewichtValues.length > 0 ? Math.ceil(Math.max(...gewichtValues) / 5) * 5 : 100;
+        
         vitalChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
@@ -1533,13 +1762,6 @@
                         borderColor: PULS_COLOR_CHART, 
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'puls', order: 1,
-                    },
-                    {
-                        label: 'Ø Gewicht (kg)',
-                        data: chartData.map(d => d.gewicht),
-                        borderColor: GEWICHT_COLOR_CHART, 
-                        backgroundColor: 'rgba(219, 39, 119, 0.2)', 
-                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'gewicht', order: 2,
                     },
                     {
                         label: 'Ø Blutzucker (mg/dL)',
@@ -1561,7 +1783,23 @@
                         borderColor: BLUTDRUCK_DIA_COLOR_CHART, 
                         backgroundColor: 'rgba(96, 165, 250, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 5,
-                    }
+                    },
+                    // NEU: BMI Dataset (eigene Y-Achse, rechts)
+                    {
+                        label: 'Ø BMI',
+                        data: chartData.map(d => d.bmi),
+                        borderColor: BMI_COLOR_CHART,
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderWidth: 3, tension: 0.3, pointRadius: 5, yAxisID: 'bmi', order: 6,
+                    },
+                    // Gewicht als letztes, damit es nicht die Hauptlinien verdeckt
+                    {
+                        label: 'Ø Gewicht (kg)',
+                        data: chartData.map(d => d.gewicht),
+                        borderColor: GEWICHT_COLOR_CHART, 
+                        backgroundColor: 'rgba(219, 39, 119, 0.2)', 
+                        borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'gewicht', order: 2,
+                    },
                 ]
             },
             options: {
@@ -1569,9 +1807,16 @@
                 maintainAspectRatio: false, 
                 scales: {
                     puls: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls (BPM)', color: PULS_COLOR_CHART }, ticks: { color: PULS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
-                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 100, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, callback: (v) => v.toFixed(1) } },
+                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: gewichtMin, max: gewichtMax, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, callback: (v) => v.toFixed(1) } },
                     blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: BLUTZUCKER_COLOR_CHART }, ticks: { color: BLUTZUCKER_COLOR_CHART, callback: (v) => v.toFixed(0) } },
                     blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: BLUTDRUCK_SYS_COLOR_CHART }, ticks: { color: BLUTDRUCK_SYS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
+                    // NEU: BMI Achse
+                    bmi: {
+                        type: 'linear', position: 'right', grid: { drawOnChartArea: false }, 
+                        min: bmiMin, max: bmiMax,
+                        title: { display: true, text: 'BMI', color: BMI_COLOR_CHART },
+                        ticks: { color: BMI_COLOR_CHART, callback: (v) => v.toFixed(1) }
+                    },
                     x: { beginAtZero: false, }
                 },
                 plugins: {
@@ -1586,6 +1831,7 @@
                                     if (context.dataset.label.includes('Blutzucker')) return label + `${context.parsed.y.toFixed(0)} mg/dL`;
                                     if (context.dataset.label.includes('Puls')) return label + `${context.parsed.y.toFixed(0)} BPM`;
                                     if (context.dataset.label.includes('Blutdruck')) return label + `${context.parsed.y.toFixed(0)} mmHg`;
+                                    if (context.dataset.label.includes('BMI')) return label + `${context.parsed.y.toFixed(1)}`; // NEU
                                 }
                                 return label + 'N/A';
                             }
