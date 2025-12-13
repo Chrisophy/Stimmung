@@ -1807,7 +1807,7 @@
                 maintainAspectRatio: false, 
                 scales: {
                     puls: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls (BPM)', color: PULS_COLOR_CHART }, ticks: { color: PULS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
-                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: gewichtMin, max: gewichtMax, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, stepSize: 0.1, callback: (v) => v.toFixed(1) } },
+                    gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: gewichtMin, max: gewichtMax, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, stepSize: 1, callback: (v) => v.toFixed(1) } },
                     blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: BLUTZUCKER_COLOR_CHART }, ticks: { color: BLUTZUCKER_COLOR_CHART, callback: (v) => v.toFixed(0) } },
                     blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: BLUTDRUCK_SYS_COLOR_CHART }, ticks: { color: BLUTDRUCK_SYS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
                     // NEU: BMI Achse
