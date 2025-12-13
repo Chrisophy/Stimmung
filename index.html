@@ -376,7 +376,7 @@
 </div>
 
 <button id="scrollToTopBtn" class="scroll-to-top" title="Zum Seitenanfang scrollen">
-    ⬆️ Zum Anfang
+    ⬆️ 
 </button>
 
 
@@ -395,7 +395,7 @@
     let lastFetchedDate = null; 
     const PERIOD_TIME_MAP = { 'Nacht': 3, 'Morgen': 9, 'Mittag': 13, 'Abend': 19 };
     const AUTO_PERIOD_MAP = [ { name: 'Nacht', startHour: 0, endHour: 5 }, { name: 'Morgen', startHour: 5, endHour: 12 }, { name: 'Mittag', startHour: 12, endHour: 18 }, { name: 'Abend', startHour: 18, endHour: 24 } ];
-    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer 🌦️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
+    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer ??️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
     const PAIN_REGION_NAMES = { 'oben': 'Oben', 'mitte': 'Mitte', 'unten': 'Unten' };
     const entryDateEl = document.getElementById('entry-date'); 
     const timePeriodsEl = document.getElementById('time-periods');
