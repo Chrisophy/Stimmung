@@ -1,5 +1,11 @@
 # Changelog – Stimmungs-Tagebuch mit Wetter & Schmerz
 
+## [v1.0.5] - 2025-12-13
+
+### 🔧 Geändert
+* **Abhängigkeiten hinzugefügt** 
+* **Backupanfrage geändert** 
+
 ## [v1.0.4] - 2025-12-10
 
 ### 🔧 Geändert
@@ -38,6 +44,7 @@
 * **Kernfunktion:** Erfassung der Stimmung (1-5) und Notizen, gruppiert nach den Tageszeiten (Nacht, Morgen, Mittag, Abend).
 * **Datenpersistenz:** Anbindung an **Firebase/Firestore** zur Speicherung der Daten mit anonymer Benutzerauthentifizierung.
 * **Visualisierung:** Erstellung eines Liniendiagramms zur Darstellung des historischen Stimmungsverlaufs.
+
 
 
 
