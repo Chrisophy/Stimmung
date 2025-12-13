@@ -439,6 +439,39 @@
             }
         }
     }
+    
+    // NEUE FUNKTION: Setzt alle Formularfelder zurück
+    function resetInputFields() {
+        // Zurücksetzen der Auswahlbuttons
+        document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+        document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+        document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
+        
+        // Zurücksetzen der Variablen
+        selectedPeriod = null;
+        selectedMood = null;
+        selectedPain = null; 
+        
+        // Zurücksetzen der Pflichtfelder
+        entryDateEl.value = new Date().toISOString().split('T')[0]; 
+        
+        // Zurücksetzen der optionalen Felder
+        painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+        pulsEl.value = '';
+        gewichtEl.value = '';
+        blutzuckerEl.value = '';
+        blutdruckSysEl.value = '';
+        blutdruckDiaEl.value = '';
+        noteEl.value = '';
+        
+        // Erneute Vorauswahl der Tageszeit (basierend auf aktueller Uhrzeit)
+        preselectTimePeriod(); 
+        
+        // Formular-Status aktualisieren
+        checkFormValidity();
+        updateWeatherDisplayForSelectedPeriod();
+        fetchWeather(entryDateEl.value); 
+    }
 
     function setupApp() {
         allStoredEntries = loadEntriesFromLocalStorage(); 
@@ -688,7 +721,7 @@
         
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
-        exportButton.addEventListener('click', exportData); // Geändert
+        exportButton.addEventListener('click', exportData); 
         exportChartButton.addEventListener('click', () => exportChart('moodChart')); 
         exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); 
         exportVitalChartButton.addEventListener('click', () => exportChart('vitalChart'));
@@ -706,7 +739,7 @@
         });
 
         helpButton.addEventListener('click', showHelpModal);
-        closeModalButton.addEventListener('click', closeHelpModal);
+        closeModalButton.addEventListener('click', closeModalButton);
         helpModal.addEventListener('click', (e) => {
             if (e.target === helpModal) { closeHelpModal(); }
         });
@@ -773,6 +806,7 @@
         statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
         statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
         
+        // **GEWÜNSCHTES VERHALTEN WIEDERHERGESTELLT: SEITE NEU LADEN**
         setTimeout(() => {
             window.location.reload(); 
         }, 1500);
@@ -844,7 +878,7 @@
             );
         }
         renderStats(filteredEntries);
-        renderSortedHistory(filteredEntries, false);
+        renderHistory(filteredEntries);
     }
     
     function renderStats(entries) {
@@ -1006,7 +1040,7 @@
         if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
         if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
         if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
-        if (entry.blutdruckSys !== undefined && entry.blutdruckDia !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== null) {
+        if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
              vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
         }
         const vitalLine = vitalData.length > 0 
@@ -1077,46 +1111,23 @@
         }
     }
     
-    // START DER KORRIGIERTEN EXPORT-FUNKTION
     function exportData() {
         const allEntries = allStoredEntries;
-        
-        if (allEntries.length === 0) { 
-            alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
-            return; 
-        }
-
-        // Fügen Sie hier eine Bestätigung hinzu, um den irreführenden Erfolgs-Alert nach dem Abbrechen zu vermeiden.
-        const now = new Date();
-        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
-        
-        if (!confirm(`Möchten Sie jetzt ein Backup aller ${allEntries.length} Einträge erstellen (als ${filename})?`)) {
-            // Wenn der Benutzer "Abbrechen" wählt, beenden wir die Funktion,
-            // und es wird keine falsche Erfolgsmeldung angezeigt.
-            return;
-        }
-
+        if (allEntries.length === 0) { alert("Es sind keine Einträge zum Exportieren vorhanden!"); return; }
         const dataStr = JSON.stringify(allEntries, null, 2); 
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        
+        const now = new Date();
+        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
-        
-        // Auslösen des Downloads. Der Browser fragt hier den Benutzer.
         a.click();
-        
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        // ACHTUNG: Der Alert am Ende wurde entfernt, da er nicht weiß, ob der Benutzer auf "Abbrechen" klickt.
-        // Die Browser-Meldung für den Download/Speichern ist die einzige zuverlässige Bestätigung.
-        // Optional könnte man eine kurze Meldung anzeigen, dass der Download ausgelöst wurde.
-        // alert(`Datenexport (${filename}) wurde ausgelöst. Bitte überprüfen Sie Ihren Downloads-Ordner.`);
+        alert(`Daten erfolgreich als ${filename} exportiert.`);
     }
-    // ENDE DER KORRIGIERTEN EXPORT-FUNKTION
 
     function importData() {
         const file = jsonFileInput.files[0];
@@ -1136,6 +1147,7 @@
                 importedEntries.forEach(entry => {
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
+                    // **KORREKTUR: Robuste Behandlung fehlender schmerzRegionen beim Import**
                     entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
                     const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
                     if (existingIndex > -1) {
@@ -1370,13 +1382,15 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            // **KORREKTUR: Vereinfachung des Stimmung-Tooltips**
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) { label += ': '; }
                                 if (context.dataset.yAxisID === 'mood') {
                                     const value = context.parsed.y;
+                                    // Zeigt nur den Durchschnittswert und den zugehörigen Namen an.
                                     const mood = Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === Math.round(value));
-                                    label += `${value.toFixed(2)} (${mood ? window.MOOD_NAMES[mood] : 'Unbekannt'})`;
+                                    label += `${value.toFixed(2)} (${mood ? window.MOOD_NAMES[mood] : 'N/A'})`; 
                                 } else if (context.dataset.label.includes('Schmerz')) { 
                                     label += `${context.parsed.y.toFixed(1)}/10`;
                                 } else if (context.dataset.label.includes('Temperatur')) { 
@@ -1542,6 +1556,7 @@
         let totalCount = 0;
 
         dataToUse.forEach(entry => {
+            // Sicherstellen, dass schmerzRegionen existiert und ein Array ist
             if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
                 entry.schmerzRegionen.forEach(region => {
                     if (regionCounts.hasOwnProperty(region)) {
@@ -1603,10 +1618,15 @@
                     },
                     tooltip: {
                         callbacks: {
+                            // **KORREKTUR: Manuelle Berechnung des Totalwerts zur Vermeidung von NaN%**
                             label: function(context) {
                                 const count = context.parsed;
-                                const total = context.chart._total;
-                                const percentage = ((count / total) * 100).toFixed(1) + '%';
+                                // Die Gesamtsumme aus den Daten des aktuellen Datensatzes berechnen
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0); 
+                                
+                                // Vermeide Division durch Null
+                                const percentage = total === 0 ? '0.0%' : ((count / total) * 100).toFixed(1) + '%';
+                                
                                 return `${context.label}: ${count} mal (${percentage})`;
                             }
                         }
