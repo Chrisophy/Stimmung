@@ -1,5 +1,5 @@
 
-🎯 Hauptfunktion
+🎯 Hauptfunktion:
 
 
 Die Hauptfunktion der App ist die einfache und schnelle Erfassung und Nachverfolgung Ihres emotionalen und körperlichen Zustands über den Tag und über die Zeit.
@@ -13,7 +13,7 @@ Schmerzregionen:
 
 Zusätzlich zur Intensität können Sie nun die Schmerzregion(en) (Oben, Mitte, Unten) erfassen.
 
-Vitalfunktionen (NEU):
+Vitalfunktionen:
 
 Optional können Puls, Gewicht, Blutzucker und Blutdruck (Systolisch/Diastolisch) erfasst werden.
 
@@ -30,7 +30,7 @@ Multivariate Analyse (Linien-Chart für Stimmung/Schmerz/Wetter):
 
 Sie können den multivariaten Verlauf Ihrer Stimmung, der Schmerzintensität und der Temperatur in einem übersichtlichen Liniendiagramm analysieren, um tiefere Zusammenhänge, Muster und Trends in Ihrem Wohlbefinden zu erkennen.
 
-Vitalfunktionen-Analyse (Linien-Chart NEU):
+Vitalfunktionen-Analyse (Linien-Chart):
 
 Ein dediziertes Diagramm zeigt die Entwicklung von Puls, Gewicht, Blutzucker und Blutdruck über die Zeit.
 
