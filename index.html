@@ -1126,7 +1126,6 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        alert(`Daten erfolgreich als ${filename} exportiert.`);
     }
 
     function importData() {
@@ -1297,7 +1296,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Ø Stimmung (1=Schlecht, 5=Gut)',
+                        label: 'Ø',
                         data: moodData,
                         borderColor: '#4f46e5', 
                         backgroundColor: 'rgba(79, 70, 229, 0.2)',
