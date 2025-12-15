@@ -1,15 +1,21 @@
-const CACHE_NAME = 'stimmungstagebuch-cache-v3';
+const CACHE_NAME = 'stimmungstagebuch-cache-v4';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   '/Stimmung/', 
   '/Stimmung/index.html',
-  './UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2',
   './chart.umd.js',
   './tailwind.css',
   './icons/icon-192x192.png',
-  './icons/icon-512x512.png'
+  './icons/icon-512x512.png',
+  './fonts/1.woff2',
+  './fonts/2.woff2', 
+  './fonts/3.woff2',
+  './fonts/4.woff2',
+  './fonts/5.woff2',
+  './fonts/6.woff2',
+  './fonts/7.woff2'
 ];
 
 
