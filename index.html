@@ -144,6 +144,10 @@
         <button id="manage-users-btn" class="w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-150 shadow-md">
             🧑‍🤝‍🧑 Benutzer verwalten / wechseln
         </button>
+        <p id="status-message" class="mt-3 text-center text-sm font-medium h-4"></p>
+        <a href="#verwaltung-section" class="block w-full text-center bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm mb-4">
+         Zur Verwaltung
+    </a>                
     </section>
     <section class="p-6 bg-gray-50 rounded-xl shadow-inner mb-8">
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Neuer Eintrag</h2>
@@ -261,11 +265,6 @@
         <button id="save-entry" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md disabled:opacity-50" disabled>
             Bitte Datum, Zeitraum, Stimmung und Schmerz wählen
         </button>
-
-        <p id="status-message" class="mt-3 text-center text-sm font-medium h-4"></p>
-        <a href="#verwaltung-section" class="block w-full text-center bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-150 shadow-sm mb-4">
-        ⬇️ Zur Verwaltung
-    </a>        
     </section>
     
     <section class="mt-8 mb-8 p-6 bg-gray-50 rounded-xl shadow">
@@ -395,7 +394,7 @@
                 Die Hauptfunktion der App ist die einfache und schnelle Erfassung und Nachverfolgung Ihres emotionalen und körperlichen Zustands über den Tag und über die Zeit.
             </p>
             
-            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">🧑‍🤝‍🧑 Mehrbenutzer-Modus (NEU)</h3>
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">🧑‍🤝‍🧑 Mehrbenutzer-Modus</h3>
             <p class="text-sm">
                 Die Anwendung unterstützt nun mehrere Benutzer. Alle Einträge und statischen Vitaldaten (Geburtsdatum, Größe) werden **lokal und getrennt** für jeden aktiven Benutzer gespeichert.
             </p>
@@ -500,16 +499,13 @@
 <script src="chart.umd.js"></script>
 
 <script>
-    // --------------------------------------------------------------------------------
-    // NEUE KONSTANTEN FÜR DEN MEHRBENUTZER-MODUS
-    // --------------------------------------------------------------------------------
+
     const LOCAL_STORAGE_KEY_BASE = 'stimmungstagebuch_data_';
     const USER_VITAL_INFO_KEY_BASE = 'user_vital_info_'; 
     const ACTIVE_USER_KEY = 'active_stimmungs_user';
     const USER_LIST_KEY = 'stimmungs_user_list';
     
-    let activeUser = 'Default'; // Standardbenutzer
-    // --------------------------------------------------------------------------------
+    let activeUser = 'Standard'; 
     
     let selectedPeriod = null;
     let selectedMood = null;
@@ -562,7 +558,6 @@
     const koerpergroesseEl = document.getElementById('koerpergroesse');
     const bmiDisplayEl = document.getElementById('bmi-display');
     
-    // NEU: Elemente für Benutzerverwaltung
     const manageUsersBtn = document.getElementById('manage-users-btn');
     const userModal = document.getElementById('user-modal');
     const closeUserModalBtn = document.getElementById('close-user-modal');
@@ -572,7 +567,7 @@
     const addUserBtn = document.getElementById('add-user-btn');
     const currentUserDisplay = document.getElementById('current-user-display');
     const userStatusMessage = document.getElementById('user-status-message');
-    // NEU: Elemente für Benutzer löschen
+
     const userDeleteSelect = document.getElementById('user-delete-select');
     const deleteUserBtn = document.getElementById('delete-user-btn');
 
@@ -582,9 +577,6 @@
     window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
     const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
 
-    // --------------------------------------------------------------------------------
-    // NEU: FUNKTIONEN FÜR DYNAMISCHE LOCALSTORAGE KEYS
-    // --------------------------------------------------------------------------------
     function getLocalStorageKey() {
         return LOCAL_STORAGE_KEY_BASE + activeUser;
     }
@@ -593,7 +585,7 @@
         return USER_VITAL_INFO_KEY_BASE + activeUser;
     }
 
-    // Lädt dauerhafte Benutzerinformationen
+
     function loadUserVitalInfo() {
         try {
             const data = localStorage.getItem(getUserVitalInfoKey());
@@ -604,7 +596,6 @@
         }
     }
     
-    // Speichert dauerhafte Benutzerinformationen
     function saveUserVitalInfo(geburtsdatum, koerpergroesse) {
         userVitalInfo.geburtsdatum = geburtsdatum;
         userVitalInfo.koerpergroesse = koerpergroesse;
@@ -633,16 +624,14 @@
             console.error("Fehler beim Speichern in localStorage:", e);
         }
     }
-    // --------------------------------------------------------------------------------
-    // NEUE FUNKTIONEN FÜR BENUTZERVERWALTUNG
-    // --------------------------------------------------------------------------------
+    
     function getSavedUsers() {
         try {
             const users = localStorage.getItem(USER_LIST_KEY);
-            return users ? JSON.parse(users).sort((a, b) => a.localeCompare(b)) : ['Default']; 
+            return users ? JSON.parse(users).sort((a, b) => a.localeCompare(b)) : ['Standard']; 
         } catch (e) {
             console.error("Fehler beim Laden der Benutzerliste:", e);
-            return ['Default'];
+            return ['Standard'];
         }
     }
 
@@ -661,10 +650,9 @@
         if (savedUser && users.includes(savedUser)) {
             activeUser = savedUser;
         } else {
-            // Setze den ersten verfügbaren Benutzer oder 'Default'
-            activeUser = users[0] || 'Default';
-            if (!users.includes('Default')) {
-                users.push('Default');
+            activeUser = users[0] || 'Standard';
+            if (!users.includes('Standard')) {
+                users.push('Standard');
                 saveUsers(users);
             }
             localStorage.setItem(ACTIVE_USER_KEY, activeUser);
@@ -675,7 +663,7 @@
     function switchToUser(username) {
         if (username === activeUser) return;
         localStorage.setItem(ACTIVE_USER_KEY, username);
-        // Seite neu laden, um alle Daten für den neuen Benutzer zu aktualisieren
+
         window.location.reload(); 
     }
 
@@ -714,11 +702,10 @@
             return;
         }
 
-        // 1. Daten aus localStorage löschen
         localStorage.removeItem(LOCAL_STORAGE_KEY_BASE + userToDelete);
         localStorage.removeItem(USER_VITAL_INFO_KEY_BASE + userToDelete);
         
-        // 2. Benutzer aus der Benutzerliste entfernen
+
         let users = getSavedUsers();
         users = users.filter(u => u !== userToDelete);
         saveUsers(users);
@@ -726,7 +713,7 @@
         userStatusMessage.textContent = `Benutzer "${userToDelete}" und seine Daten wurden gelöscht.`;
         userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-green-600 h-4';
         
-        // 3. Modal neu befüllen (Löschliste aktualisieren)
+
         populateUserModal();
     }
     
@@ -742,7 +729,7 @@
         userListSelect.value = activeUser;
         switchUserBtn.disabled = true; 
         
-        populateUserDeleteList(); // NEU: Löschliste füllen
+        populateUserDeleteList();
 
         newUserNameInput.value = '';
         addUserBtn.disabled = true;
@@ -778,9 +765,7 @@
         switchUserBtn.disabled = false;
         addUserBtn.disabled = true;
     }
-    // --------------------------------------------------------------------------------
 
-    // NEU: Hilfsfunktion zur Generierung der Schmerzbuttons
     function generatePainButtons() {
         let html = '';
         for (let i = 0; i <= 10; i++) {
@@ -806,7 +791,7 @@
     function calculateBMI(weightKg, heightCm) {
         if (weightKg > 0 && heightCm > 0) {
             const heightM = heightCm / 100;
-            // BMI Formel: Gewicht (kg) / Größe (m)²
+
             const bmi = weightKg / (heightM * heightM); 
             return bmi.toFixed(1);
         }
@@ -820,7 +805,7 @@
         
         bmiDisplayEl.value = bmi;
         
-        // Optionale Farbgebung/Hinweise basierend auf BMI-Wert (WHO-Klassifikation)
+
         bmiDisplayEl.className = `w-full p-2 border border-gray-300 rounded-lg text-center font-bold 
             ${bmi === 'N/A' ? 'bg-gray-100' : 
             bmi < 18.5 ? 'bg-blue-200 text-blue-800' : 
@@ -863,7 +848,7 @@
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
         pulsEl.value = '';
         gewichtEl.value = '';
-        // Geburtsdatum und Größe werden von loadUserVitalInfo gesetzt
+
         blutzuckerEl.value = '';
         blutdruckSysEl.value = '';
         blutdruckDiaEl.value = '';
@@ -877,14 +862,14 @@
     }
 
     function setupApp() {
-        loadActiveUser(); // Wichtig: Zuerst den aktiven Benutzer laden
+        loadActiveUser();
         allStoredEntries = loadEntriesFromLocalStorage(); 
         loadUserVitalInfo(); 
         
         geburtsdatumEl.value = userVitalInfo.geburtsdatum || '';
         koerpergroesseEl.value = userVitalInfo.koerpergroesse || '';
         
-        generatePainButtons(); // NEU: Buttons hier generieren
+        generatePainButtons(); 
         preselectTimePeriod(); 
         calculateAndDisplayBMI(); 
         renderSortedHistory(allStoredEntries, true); 
@@ -1090,7 +1075,7 @@
     function toggleScrollButton() {
         const button = document.getElementById('scrollToTopBtn');
         if (window.scrollY > 200) { 
-            button.style.display = 'flex'; // Geändert auf 'flex' für Zentrierung
+            button.style.display = 'flex';
         } else {
             button.style.display = 'none';
         }
@@ -1175,7 +1160,7 @@
         window.addEventListener('scroll', toggleScrollButton);
         toggleScrollButton(); 
         
-        // NEU: Listener für User-Modal
+        
         manageUsersBtn.addEventListener('click', populateUserModal);
         closeUserModalBtn.addEventListener('click', () => { userModal.classList.remove('modal-show'); });
         userModal.addEventListener('click', (e) => {
@@ -1190,7 +1175,7 @@
         switchUserBtn.addEventListener('click', handleSwitchUser);
         addUserBtn.addEventListener('click', handleAddUser);
         
-        // NEU: Listener für Benutzer löschen
+        
         userDeleteSelect.addEventListener('change', () => { deleteUserBtn.disabled = userDeleteSelect.value === ''; });
         deleteUserBtn.addEventListener('click', handleDeleteUser);
 
@@ -1590,7 +1575,7 @@
         
         if (confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?")) {
             try {
-                localStorage.removeItem(getUserVitalInfoKey()); // Dynamischer Schlüssel
+                localStorage.removeItem(getUserVitalInfoKey()); 
                 userVitalInfo = {};
             } catch (e) {
                  console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
@@ -1601,7 +1586,7 @@
         resetStatusEl.textContent = 'Lösche alle Daten...';
         resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
         try {
-            localStorage.removeItem(getLocalStorageKey()); // Dynamischer Schlüssel
+            localStorage.removeItem(getLocalStorageKey()); 
             allStoredEntries = []; 
             resetStatusEl.textContent = `Erfolgreich alle Einträge für Benutzer "${activeUser}" gelöscht!`;
             resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
@@ -1622,10 +1607,10 @@
     function exportData() {
         const allEntries = allStoredEntries;
         const exportObject = {
-            activeUser: activeUser, // NEU: Welcher Benutzer ist aktiv
+            activeUser: activeUser, 
             entries: allEntries,
             userVitalInfo: userVitalInfo,
-            // Optional: Exportiere die Liste aller Benutzer zur einfacheren Wiederherstellung
+            
             userList: getSavedUsers() 
         };
 
@@ -1665,7 +1650,7 @@
                 let targetUser = activeUser;
 
                 if (importedData.entries && Array.isArray(importedData.entries)) {
-                    // Neues Format
+
                     importedEntries = importedData.entries;
                     importedUserVitalInfo = importedData.userVitalInfo || {};
                     if (importedData.activeUser) { targetUser = importedData.activeUser; }
@@ -1674,7 +1659,7 @@
                         saveUsers(importedUserList);
                     }
                 } else if (Array.isArray(importedData)) { 
-                    // Altes Array-Format (alle Einträge gehen zum aktiven Benutzer)
+
                     importedEntries = importedData;
                 } else {
                      throw new Error("Die Datei ist kein gültiges Backup-Format. Erwartet wurde ein JSON-Array ([...]) oder ein Objekt mit dem Schlüssel 'entries'."); 
@@ -1684,7 +1669,7 @@
                     if (!confirm(`Die Backup-Datei scheint für den Benutzer "${targetUser}" zu sein. Möchten Sie zum Benutzer wechseln, um die Daten zu importieren? Andernfalls werden sie in den aktiven Benutzer ("${activeUser}") importiert.`)) {
                          targetUser = activeUser;
                     } else {
-                        switchToUser(targetUser); // Startet Reload und bricht den aktuellen Import ab
+                        switchToUser(targetUser); 
                         return;
                     }
                 }
@@ -1693,7 +1678,7 @@
                 let entriesAdded = 0;
                 let entriesOverwritten = 0;
 
-                // Einträge zusammenführen/überschreiben
+                
                 importedEntries.forEach(entry => {
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
@@ -1720,7 +1705,7 @@
                     }
                 });
                 
-                // Statische Vitaldaten zusammenführen/überschreiben
+                
                 if (importedUserVitalInfo.geburtsdatum || importedUserVitalInfo.koerpergroesse) {
                     saveUserVitalInfo(
                         importedUserVitalInfo.geburtsdatum || userVitalInfo.geburtsdatum || null,
@@ -2233,7 +2218,6 @@
 </script>
 
 <script>
-    // Service Worker Logik zur PWA-Unterstützung (bleibt unverändert)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
