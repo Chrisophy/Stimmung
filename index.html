@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#4f46e5">
     <link rel="manifest" href="./manifest.json">
     <title>Stimmungs-Tagebuch</title>
-    <script src="tailwind.css"></script>
+    <script src="tailwind.css"></script> 
     <style>
 
 @font-face {
@@ -58,16 +58,23 @@
             bottom: 20px;    /* 20px vom unteren Rand */
             right: 20px;     /* 20px vom rechten Rand */
             z-index: 1001;   /* Über allen anderen Elementen */
-            background-color: rgba(255,255,255,0.2)
+            background-color: rgba(79, 70, 229, 0.8); /* Indigo-Hintergrund, leicht transparent */
             color: white;
             padding: 0.5rem;
-            border-radius: 9px; /* Macht den Button kreisförmig */
+            width: 44px; /* Feste Größe */
+            height: 44px; /* Feste Größe */
+            display: flex; /* Für Zentrierung */
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px; 
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.2s, transform 0.1s;
             display: none; /* Standardmäßig versteckt, wird per JS eingeblendet */
+            font-size: 1.25rem;
+            line-height: 1;
         }
         .scroll-to-top:hover {
-            background-color: rgba(255,255,255,0.2);
+            background-color: #4f46e5;
         }
         .scroll-to-top:active {
             transform: scale(0.95);
@@ -83,6 +90,14 @@
         <p id="weather-status" class="text-center text-sm text-gray-400 mt-2">Lade Standort...</p> 
     </header>
 
+    <section class="p-4 bg-yellow-50 rounded-xl shadow-md mb-8 border border-yellow-200">
+        <h2 class="text-xl font-semibold mb-3 text-gray-800 flex justify-between items-center">
+            Aktiver Benutzer: <span id="current-user-display" class="font-bold text-indigo-600 text-2xl">Lade...</span>
+        </h2>
+        <button id="manage-users-btn" class="w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-150 shadow-md">
+            🧑‍🤝‍🧑 Benutzer verwalten / wechseln
+        </button>
+    </section>
     <section class="p-6 bg-gray-50 rounded-xl shadow-inner mb-8">
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Neuer Eintrag</h2>
         
@@ -191,7 +206,7 @@
                 <div class="flex space-x-3">
                     <div class="flex-1">
                         <label for="blutdruck" class="block text-xs font-medium text-gray-500">Blutdruck (Sys/Dia)</label>
-                        <div class="flex space-x-1">
+                        <div class="flex space-space-x-1">
                             <input type="number" id="blutdruckSys" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="Sys" min="50">
                             <input type="number" id="blutdruckDia" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500" placeholder="Dia" min="30">
                         </div>
@@ -255,6 +270,7 @@
             <p class="inline-block px-2 py-1 rounded-md bg-blue-100 text-blue-800 font-medium">Blutdruck (mmHg)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-yellow-100 text-yellow-800 font-medium">Blutzucker (mg/dL)</p>
             <p class="inline-block px-2 py-1 rounded-md bg-pink-100 text-pink-800 font-medium">Gewicht (kg)</p>
+            <p class="inline-block px-2 py-1 rounded-md bg-indigo-100 text-indigo-800 font-medium">BMI</p>
         </div>
     </section>
 
@@ -340,6 +356,11 @@
             <p class="text-sm">
                 Die Hauptfunktion der App ist die einfache und schnelle Erfassung und Nachverfolgung Ihres emotionalen und körperlichen Zustands über den Tag und über die Zeit.
             </p>
+            
+            <h3 class="text-xl font-bold text-gray-800 border-b pb-1">🧑‍🤝‍🧑 Mehrbenutzer-Modus (NEU)</h3>
+            <p class="text-sm">
+                Die Anwendung unterstützt nun mehrere Benutzer. Alle Einträge und statischen Vitaldaten (Geburtsdatum, Größe) werden **lokal und getrennt** für jeden aktiven Benutzer gespeichert.
+            </p>
 
             <h3 class="text-xl font-bold text-gray-800 border-b pb-1">📝 Erweiterte Erfassung</h3>
             <p class="font-semibold mt-2">Basis-Eintrag:</p>
@@ -371,7 +392,7 @@
             </p>
             <p class="font-semibold mt-2">Vitalfunktionen-Analyse (Linien-Chart):</p>
             <p class="text-sm">
-                Ein dediziertes Diagramm zeigt die Entwicklung von Puls, Gewicht, Blutzucker und Blutdruck über die Zeit.
+                Ein dediziertes Diagramm zeigt die Entwicklung von Puls, Gewicht, Blutzucker und Blutdruck sowie BMI über die Zeit.
             </p>
             <p class="font-semibold mt-2">Schmerzregionen-Analyse (Kuchen-Chart):</p>
             <p class="text-sm">
@@ -395,6 +416,33 @@
     </div>
 </div>
 
+<div id="user-modal" class="modal-overlay">
+    <div class="modal-content">
+        <button id="close-user-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold p-1">
+            &times;
+        </button>
+        <h2 class="text-2xl font-extrabold text-indigo-700 mb-4">🧑‍🤝‍🧑 Benutzerverwaltung</h2>
+        
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">Benutzer wechseln</h3>
+            <select id="user-list-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="" disabled>Wähle einen Benutzer</option>
+            </select>
+            <button id="switch-user-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md mt-2 disabled:opacity-50" disabled>
+                Benutzer wechseln
+            </button>
+        </div>
+        
+        <div class="border-t pt-4 mt-4">
+            <h3 class="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h3>
+            <input type="text" id="new-user-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" placeholder="Name des neuen Benutzers">
+            <button id="add-user-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-150 shadow-md mt-2 disabled:opacity-50">
+                Benutzer hinzufügen
+            </button>
+            <p id="user-status-message" class="mt-2 text-sm text-center font-medium h-4"></p>
+        </div>
+    </div>
+</div>
 <button id="scrollToTopBtn" class="scroll-to-top" title="Zum Seitenanfang scrollen">
     ⬆️
 </button>
@@ -403,14 +451,21 @@
 <script src="chart.umd.js"></script>
 
 <script>
-    const LOCAL_STORAGE_KEY = 'stimmungstagebuch_data';
-    // NEU: Key für dauerhafte Benutzerinformationen (Geburtsdatum, Größe)
-    const USER_VITAL_INFO_KEY = 'user_vital_info'; 
+    // --------------------------------------------------------------------------------
+    // NEUE KONSTANTEN FÜR DEN MEHRBENUTZER-MODUS
+    // --------------------------------------------------------------------------------
+    const LOCAL_STORAGE_KEY_BASE = 'stimmungstagebuch_data_';
+    const USER_VITAL_INFO_KEY_BASE = 'user_vital_info_'; 
+    const ACTIVE_USER_KEY = 'active_stimmungs_user';
+    const USER_LIST_KEY = 'stimmungs_user_list';
+    
+    let activeUser = 'Default'; // Standardbenutzer
+    // --------------------------------------------------------------------------------
+    
     let selectedPeriod = null;
     let selectedMood = null;
     let selectedPain = null; 
     let allStoredEntries = []; 
-    // NEU: Speichert Geburtsdatum und Größe, die dauerhaft bleiben sollen
     let userVitalInfo = {}; 
 
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
@@ -454,10 +509,20 @@
     const helpButton = document.getElementById('help-button');
     const helpModal = document.getElementById('help-modal');
     const closeModalButton = document.getElementById('close-modal');
-    // NEU: Elemente für BMI-Funktionalität
     const geburtsdatumEl = document.getElementById('geburtsdatum');
     const koerpergroesseEl = document.getElementById('koerpergroesse');
     const bmiDisplayEl = document.getElementById('bmi-display');
+    
+    // NEU: Elemente für Benutzerverwaltung
+    const manageUsersBtn = document.getElementById('manage-users-btn');
+    const userModal = document.getElementById('user-modal');
+    const closeUserModalBtn = document.getElementById('close-user-modal');
+    const userListSelect = document.getElementById('user-list-select');
+    const switchUserBtn = document.getElementById('switch-user-btn');
+    const newUserNameInput = document.getElementById('new-user-name');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const currentUserDisplay = document.getElementById('current-user-display');
+    const userStatusMessage = document.getElementById('user-status-message');
 
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
     const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
@@ -465,10 +530,21 @@
     window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
     const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
 
-    // NEU: Lädt dauerhafte Benutzerinformationen
+    // --------------------------------------------------------------------------------
+    // NEU: FUNKTIONEN FÜR DYNAMISCHE LOCALSTORAGE KEYS
+    // --------------------------------------------------------------------------------
+    function getLocalStorageKey() {
+        return LOCAL_STORAGE_KEY_BASE + activeUser;
+    }
+
+    function getUserVitalInfoKey() {
+        return USER_VITAL_INFO_KEY_BASE + activeUser;
+    }
+
+    // Lädt dauerhafte Benutzerinformationen
     function loadUserVitalInfo() {
         try {
-            const data = localStorage.getItem(USER_VITAL_INFO_KEY);
+            const data = localStorage.getItem(getUserVitalInfoKey());
             userVitalInfo = data ? JSON.parse(data) : {};
         } catch (e) {
             console.error("Fehler beim Laden der Benutzer-Vitaldaten:", e);
@@ -476,12 +552,12 @@
         }
     }
     
-    // NEU: Speichert dauerhafte Benutzerinformationen
+    // Speichert dauerhafte Benutzerinformationen
     function saveUserVitalInfo(geburtsdatum, koerpergroesse) {
         userVitalInfo.geburtsdatum = geburtsdatum;
         userVitalInfo.koerpergroesse = koerpergroesse;
         try {
-            localStorage.setItem(USER_VITAL_INFO_KEY, JSON.stringify(userVitalInfo));
+            localStorage.setItem(getUserVitalInfoKey(), JSON.stringify(userVitalInfo));
         } catch (e) {
             console.error("Fehler beim Speichern der Benutzer-Vitaldaten:", e);
         }
@@ -489,7 +565,7 @@
 
     function loadEntriesFromLocalStorage() {
         try {
-            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const data = localStorage.getItem(getLocalStorageKey());
             return data ? JSON.parse(data) : [];
         } catch (e) {
             console.error("Fehler beim Laden aus localStorage:", e);
@@ -499,14 +575,107 @@
 
     function saveEntriesToLocalStorage(entries) {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(entries));
+            localStorage.setItem(getLocalStorageKey(), JSON.stringify(entries));
             allStoredEntries = entries; 
         } catch (e) {
             console.error("Fehler beim Speichern in localStorage:", e);
         }
     }
+    // --------------------------------------------------------------------------------
+    // NEUE FUNKTIONEN FÜR BENUTZERVERWALTUNG
+    // --------------------------------------------------------------------------------
+    function getSavedUsers() {
+        try {
+            const users = localStorage.getItem(USER_LIST_KEY);
+            return users ? JSON.parse(users) : ['Default']; 
+        } catch (e) {
+            console.error("Fehler beim Laden der Benutzerliste:", e);
+            return ['Default'];
+        }
+    }
+
+    function saveUsers(users) {
+        try {
+            localStorage.setItem(USER_LIST_KEY, JSON.stringify(users));
+        } catch (e) {
+            console.error("Fehler beim Speichern der Benutzerliste:", e);
+        }
+    }
     
-    // NEU: Funktion zur BMI-Berechnung
+    function loadActiveUser() {
+        const users = getSavedUsers();
+        const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
+        
+        if (savedUser && users.includes(savedUser)) {
+            activeUser = savedUser;
+        } else {
+            // Setze den ersten verfügbaren Benutzer oder 'Default'
+            activeUser = users[0] || 'Default';
+            if (!users.includes('Default')) {
+                users.push('Default');
+                saveUsers(users);
+            }
+            localStorage.setItem(ACTIVE_USER_KEY, activeUser);
+        }
+        currentUserDisplay.textContent = activeUser;
+    }
+    
+    function switchToUser(username) {
+        if (username === activeUser) return;
+        localStorage.setItem(ACTIVE_USER_KEY, username);
+        // Seite neu laden, um alle Daten für den neuen Benutzer zu aktualisieren
+        window.location.reload(); 
+    }
+
+    function populateUserModal() {
+        const users = getSavedUsers();
+        userListSelect.innerHTML = '';
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user;
+            option.textContent = user + (user === activeUser ? ' (Aktiv)' : '');
+            userListSelect.appendChild(option);
+        });
+        userListSelect.value = activeUser;
+        switchUserBtn.disabled = true; 
+        newUserNameInput.value = '';
+        addUserBtn.disabled = true;
+        userStatusMessage.textContent = '';
+        userModal.classList.add('modal-show');
+    }
+
+    function handleSwitchUser() {
+        const selectedUser = userListSelect.value;
+        if (selectedUser && selectedUser !== activeUser) {
+            switchToUser(selectedUser);
+        }
+    }
+
+    function handleAddUser() {
+        const newName = newUserNameInput.value.trim();
+        if (!newName) {
+            userStatusMessage.textContent = 'Bitte einen Namen eingeben.';
+            userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-red-600 h-4';
+            return;
+        }
+        let users = getSavedUsers();
+        if (users.map(u => u.toLowerCase()).includes(newName.toLowerCase())) {
+            userStatusMessage.textContent = `Benutzer "${newName}" existiert bereits.`;
+            userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-red-600 h-4';
+            return;
+        }
+        users.push(newName);
+        saveUsers(users);
+        populateUserModal(); 
+        userStatusMessage.textContent = `Benutzer "${newName}" hinzugefügt. Jetzt wechseln!`;
+        userStatusMessage.className = 'mt-2 text-sm font-medium text-green-600 h-4';
+        userListSelect.value = newName; 
+        switchUserBtn.disabled = false;
+        addUserBtn.disabled = true;
+    }
+    // --------------------------------------------------------------------------------
+
+
     function calculateBMI(weightKg, heightCm) {
         if (weightKg > 0 && heightCm > 0) {
             const heightM = heightCm / 100;
@@ -517,7 +686,6 @@
         return 'N/A';
     }
 
-    // NEU: Funktion zur Anzeige des BMI
     function calculateAndDisplayBMI() {
         const weight = getNumericValue(gewichtEl);
         const height = getNumericValue(koerpergroesseEl);
@@ -554,55 +722,43 @@
         }
     }
     
-    // NEUE FUNKTION: Setzt alle Formularfelder zurück
     function resetInputFields() {
-        // Zurücksetzen der Auswahlbuttons
         document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
         document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
         document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
         
-        // Zurücksetzen der Variablen
         selectedPeriod = null;
         selectedMood = null;
         selectedPain = null; 
         
-        // Zurücksetzen der Pflichtfelder
         entryDateEl.value = new Date().toISOString().split('T')[0]; 
         
-        // Zurücksetzen der optionalen Felder
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
         pulsEl.value = '';
         gewichtEl.value = '';
-        // NEU: Geburtsdatum und Größe bleiben, aber sind änderbar
-        // geburtsdatumEl.value = ''; // Wird jetzt von loadUserVitalInfo gesetzt
-        // koerpergroesseEl.value = ''; // Wird jetzt von loadUserVitalInfo gesetzt
+        // Geburtsdatum und Größe werden von loadUserVitalInfo gesetzt
         blutzuckerEl.value = '';
         blutdruckSysEl.value = '';
         blutdruckDiaEl.value = '';
         noteEl.value = '';
 
-        // BMI zurücksetzen
         calculateAndDisplayBMI();
-        
-        // Erneute Vorauswahl der Tageszeit (basierend auf aktueller Uhrzeit)
         preselectTimePeriod(); 
-        
-        // Formular-Status aktualisieren
         checkFormValidity();
         updateWeatherDisplayForSelectedPeriod();
         fetchWeather(entryDateEl.value); 
     }
 
     function setupApp() {
+        loadActiveUser(); // Wichtig: Zuerst den aktiven Benutzer laden
         allStoredEntries = loadEntriesFromLocalStorage(); 
-        loadUserVitalInfo(); // NEU: Laden der statischen Benutzerdaten
+        loadUserVitalInfo(); 
         
-        // NEU: Vorbelegen der dauerhaften Felder
         geburtsdatumEl.value = userVitalInfo.geburtsdatum || '';
         koerpergroesseEl.value = userVitalInfo.koerpergroesse || '';
         
         preselectTimePeriod(); 
-        calculateAndDisplayBMI(); // NEU: BMI initial berechnen (falls Gewicht gespeichert ist)
+        calculateAndDisplayBMI(); 
         renderSortedHistory(allStoredEntries, true); 
         fetchWeather(entryDateEl.value); 
     }
@@ -790,7 +946,7 @@
         if (action && action.toUpperCase() === 'S') {
             const a = document.createElement('a');
             a.href = imageURL;
-            a.download = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.png`;
+            a.download = `${filenamePrefix}_${activeUser}_${new Date().toISOString().split('T')[0]}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -803,18 +959,16 @@
         }
     }
     
-    // NEUE FUNKTION: Zeigt den Scroll-Button an/aus
     function toggleScrollButton() {
         const button = document.getElementById('scrollToTopBtn');
         if (window.scrollY > 200) { 
-            button.style.display = 'block';
+            button.style.display = 'flex'; // Geändert auf 'flex' für Zentrierung
         } else {
             button.style.display = 'none';
         }
     }
 
     function setupFormListeners() {
-        // NEU: Listener für Geburtsdatum, Größe und Gewicht zur BMI-Berechnung
         geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
         koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
         gewichtEl.addEventListener('input', calculateAndDisplayBMI);
@@ -886,18 +1040,28 @@
             if (e.target === helpModal) { closeHelpModal(); }
         });
         
-        // NEUE LISTENER FÜR SCROLL-TO-TOP
         document.getElementById('scrollToTopBtn').addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' }); // Sanft nach oben scrollen
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
         });
         
         window.addEventListener('scroll', toggleScrollButton);
-        toggleScrollButton(); // Initialer Check
+        toggleScrollButton(); 
+        
+        // NEU: Listener für User-Modal
+        manageUsersBtn.addEventListener('click', populateUserModal);
+        closeUserModalBtn.addEventListener('click', () => { userModal.classList.remove('modal-show'); });
+        userModal.addEventListener('click', (e) => {
+            if (e.target === userModal) { userModal.classList.remove('modal-show'); }
+        });
+        userListSelect.addEventListener('change', () => { switchUserBtn.disabled = userListSelect.value === activeUser; });
+        newUserNameInput.addEventListener('input', () => { addUserBtn.disabled = newUserNameInput.value.trim() === ''; });
+        switchUserBtn.addEventListener('click', handleSwitchUser);
+        addUserBtn.addEventListener('click', handleAddUser);
+
 
         checkFormValidity();
     }
     
-    // NEU: Funktion zur Altersberechnung
     function calculateAge(birthdateString) {
         if (!birthdateString) return null;
         const today = new Date();
@@ -939,11 +1103,9 @@
         const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
         const painRegions = getSelectedPainRegions(); 
         
-        // NEU: Statische Vitaldaten für dauerhafte Speicherung abrufen
         const geburtsdatum = geburtsdatumEl.value.trim() || null;
         const koerpergroesse = getNumericValue(koerpergroesseEl);
         
-        // NEU: Dauerhafte Speicherung der statischen Vitaldaten
         saveUserVitalInfo(geburtsdatum, koerpergroesse); 
 
         const gewicht = getNumericValue(gewichtEl);
@@ -957,7 +1119,6 @@
             mood: selectedMood,
             pain: selectedPain, 
             schmerzRegionen: painRegions, 
-            // NEU: Zusätzliche Vitaldaten im Eintrag speichern
             geburtsdatum: geburtsdatum, 
             koerpergroesse: koerpergroesse, 
             alter: alter, 
@@ -981,20 +1142,22 @@
         }
 
         try {
-        saveEntriesToLocalStorage(allStoredEntries);
-        statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
-        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-        
-        // **GEWÜNSCHTES VERHALTEN WIEDERHERGESTELLT: SEITE NEU LADEN**
-        setTimeout(() => {
-            window.location.reload(); 
-        }, 1500);
+            saveEntriesToLocalStorage(allStoredEntries);
+            statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+            
+            setTimeout(() => {
+                window.location.reload(); 
+            }, 1500);
 
-    } catch (error) {
-    } finally {
-        saveButton.disabled = false;
+        } catch (error) {
+            console.error("Fehler beim Speichern:", error);
+            statusMessageEl.textContent = 'Fehler beim Speichern des Eintrags.';
+            statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        } finally {
+            saveButton.disabled = false;
+        }
     }
-}
 
     function loadHistoryAndStartListening() {
         renderSortedHistory(allStoredEntries, true);
@@ -1078,7 +1241,6 @@
         let gewichtCount = 0;
         let blutzuckerSum = 0;
         let blutzuckerCount = 0;
-        // NEU: BMI Durchschnitt
         let bmiSum = 0;
         let bmiCount = 0;
 
@@ -1102,7 +1264,6 @@
                 blutzuckerSum += entry.blutzucker;
                 blutzuckerCount++;
             }
-            // NEU: BMI
              if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A' && !isNaN(parseFloat(entry.bmi))) {
                 bmiSum += parseFloat(entry.bmi);
                 bmiCount++;
@@ -1115,7 +1276,6 @@
         const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(0) : 'N/A';
         const avgGewicht = gewichtCount > 0 ? (gewichtSum / gewichtCount).toFixed(1) : 'N/A';
         const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(0) : 'N/A';
-        // NEU: Durchschnitt BMI
         const avgBMI = bmiCount > 0 ? (bmiSum / bmiCount).toFixed(1) : 'N/A';
 
 
@@ -1132,10 +1292,10 @@
         const MOOD_COLOR = '#4f46e5';   
         const PAIN_COLOR = '#9333ea';   
         const TEMP_COLOR = '#ef4444';   
-        const PULS_COLOR = '#10b981';   // Green 600
-        const GEWICHT_COLOR = '#db2777'; // Pink 600
-        const BLUTZUCKER_COLOR = '#d97706'; // Amber 700 
-        const BMI_COLOR = '#4c51bf'; // Indigo 700 (NEU)
+        const PULS_COLOR = '#10b981';   
+        const GEWICHT_COLOR = '#db2777'; 
+        const BLUTZUCKER_COLOR = '#d97706'; 
+        const BMI_COLOR = '#4c51bf'; 
 
 
         const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', MOOD_COLOR );
@@ -1144,7 +1304,6 @@
         const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
         const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', GEWICHT_COLOR );
         const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', BLUTZUCKER_COLOR );
-        // NEU: BMI Card
         const bmiCard = createStatCard( 'Ø BMI', avgBMI, '', BMI_COLOR );
 
         statsContainerEl.innerHTML = ''; 
@@ -1155,7 +1314,7 @@
         statsContainerEl.appendChild(pulsCard);
         statsContainerEl.appendChild(gewichtCard);
         statsContainerEl.appendChild(blutzuckerCard);
-        statsContainerEl.appendChild(bmiCard); // NEU: BMI Card
+        statsContainerEl.appendChild(bmiCard); 
     }
 
     function renderSortedHistory(entries, updateChartFilter = true) {
@@ -1235,13 +1394,12 @@
         let vitalData = [];
         if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
         if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
-        if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); // NEU: BMI Anzeige
+        if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); 
         if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
         if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
              vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
         }
         
-        // NEU: Anzeige von Alter (optional)
         const alterDisplay = entry.alter !== undefined && entry.alter !== null
                             ? `<span class="text-xs font-medium text-gray-500 ml-3">Alter: ${entry.alter}</span>`
                             : '';
@@ -1293,10 +1451,10 @@
 
     function resetData() {
         if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) { return; }
-        // NEU: Fragen, ob auch die statischen Vitaldaten gelöscht werden sollen
+        
         if (confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?")) {
             try {
-                localStorage.removeItem(USER_VITAL_INFO_KEY);
+                localStorage.removeItem(getUserVitalInfoKey()); // Dynamischer Schlüssel
                 userVitalInfo = {};
             } catch (e) {
                  console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
@@ -1307,14 +1465,13 @@
         resetStatusEl.textContent = 'Lösche alle Daten...';
         resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
         try {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            localStorage.removeItem(getLocalStorageKey()); // Dynamischer Schlüssel
             allStoredEntries = []; 
-            resetStatusEl.textContent = `Erfolgreich alle Einträge gelöscht!`;
+            resetStatusEl.textContent = `Erfolgreich alle Einträge für Benutzer "${activeUser}" gelöscht!`;
             resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
             yearFilterEl.value = 'all';
             monthFilterEl.value = 'all';
             renderSortedHistory([], true); 
-            // NEU: Formular zurücksetzen, um die neuen (oder gelöschten) statischen Daten zu zeigen
             setupApp(); 
         } catch (error) {
             console.error("Fehler beim Löschen der Einträge:", error);
@@ -1328,10 +1485,12 @@
     
     function exportData() {
         const allEntries = allStoredEntries;
-        // NEU: Hinzufügen der statischen User-Daten zum Export
         const exportObject = {
+            activeUser: activeUser, // NEU: Welcher Benutzer ist aktiv
             entries: allEntries,
-            userVitalInfo: userVitalInfo
+            userVitalInfo: userVitalInfo,
+            // Optional: Exportiere die Liste aller Benutzer zur einfacheren Wiederherstellung
+            userList: getSavedUsers() 
         };
 
         if (allEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
@@ -1343,7 +1502,7 @@
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const now = new Date();
-        const filename = `stimmungs_backup_${now.toISOString().split('T')[0]}.json`;
+        const filename = `stimmungs_backup_${activeUser}_${now.toISOString().split('T')[0]}.json`;
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
@@ -1364,16 +1523,36 @@
         reader.onload = function(e) {
             try {
                 const importedData = JSON.parse(e.target.result);
-                let importedEntries = importedData;
+                let importedEntries = [];
                 let importedUserVitalInfo = {};
+                let importedUserList = getSavedUsers();
+                let targetUser = activeUser;
 
-                // NEU: Prüfen, ob es sich um das neue Exportformat handelt
                 if (importedData.entries && Array.isArray(importedData.entries)) {
+                    // Neues Format
                     importedEntries = importedData.entries;
                     importedUserVitalInfo = importedData.userVitalInfo || {};
-                } else if (!Array.isArray(importedEntries)) { 
-                    throw new Error("Die Datei ist kein gültiges Array von Einträgen oder das erwartete JSON-Objekt. Erwartet wurde ein JSON-Array ([...]) oder ein Objekt mit dem Schlüssel 'entries'."); 
+                    if (importedData.activeUser) { targetUser = importedData.activeUser; }
+                    if (importedData.userList && Array.isArray(importedData.userList)) {
+                        importedUserList = [...new Set([...importedUserList, ...importedData.userList])];
+                        saveUsers(importedUserList);
+                    }
+                } else if (Array.isArray(importedData)) { 
+                    // Altes Array-Format (alle Einträge gehen zum aktiven Benutzer)
+                    importedEntries = importedData;
+                } else {
+                     throw new Error("Die Datei ist kein gültiges Backup-Format. Erwartet wurde ein JSON-Array ([...]) oder ein Objekt mit dem Schlüssel 'entries'."); 
                 }
+
+                if (targetUser !== activeUser) {
+                    if (!confirm(`Die Backup-Datei scheint für den Benutzer "${targetUser}" zu sein. Möchten Sie zum Benutzer wechseln, um die Daten zu importieren? Andernfalls werden sie in den aktiven Benutzer ("${activeUser}") importiert.`)) {
+                         targetUser = activeUser;
+                    } else {
+                        switchToUser(targetUser); // Startet Reload und bricht den aktuellen Import ab
+                        return;
+                    }
+                }
+
 
                 let entriesAdded = 0;
                 let entriesOverwritten = 0;
@@ -1382,12 +1561,8 @@
                 importedEntries.forEach(entry => {
                     const docId = entry.date + '_' + entry.timePeriod;
                     entry.id = docId; 
-                    // Robuste Behandlung fehlender schmerzRegionen
                     entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
                     
-                    // NEU: Hinzufügen von BMI, Alter, Größe etc., falls im Import fehlen
-                    // Normalerweise sollten die Daten in der Importdatei komplett sein,
-                    // aber falls ältere Backups importiert werden, könnten diese Felder fehlen.
                     if (entry.geburtsdatum === undefined && importedUserVitalInfo.geburtsdatum) {
                         entry.geburtsdatum = importedUserVitalInfo.geburtsdatum;
                         entry.alter = calculateAge(entry.geburtsdatum);
@@ -1409,7 +1584,7 @@
                     }
                 });
                 
-                // NEU: Statische Vitaldaten zusammenführen/überschreiben
+                // Statische Vitaldaten zusammenführen/überschreiben
                 if (importedUserVitalInfo.geburtsdatum || importedUserVitalInfo.koerpergroesse) {
                     saveUserVitalInfo(
                         importedUserVitalInfo.geburtsdatum || userVitalInfo.geburtsdatum || null,
@@ -1422,10 +1597,9 @@
                 yearFilterEl.value = 'all';
                 monthFilterEl.value = 'all';
                 
-                // NEU: App komplett neu einrichten, um alle neuen Daten zu erfassen
                 setupApp(); 
                 
-                importStatusEl.textContent = `Import erfolgreich! ${entriesAdded} neue Einträge hinzugefügt, ${entriesOverwritten} überschrieben.`;
+                importStatusEl.textContent = `Import erfolgreich für Benutzer "${activeUser}"! ${entriesAdded} neu, ${entriesOverwritten} überschrieben.`;
                 importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
             } catch (error) {
                 console.error("Fehler beim Importieren oder Parsen:", error);
@@ -1644,13 +1818,11 @@
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            // **KORREKTUR: Vereinfachung des Stimmung-Tooltips**
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) { label += ': '; }
                                 if (context.dataset.yAxisID === 'mood') {
                                     const value = context.parsed.y;
-                                    // Zeigt nur den Durchschnittswert und den zugehörigen Namen an.
                                     const mood = Object.keys(window.MOOD_VALUES).find(key => window.MOOD_VALUES[key] === Math.round(value));
                                     label += `${value.toFixed(2)} (${mood ? window.MOOD_NAMES[mood] : 'N/A'})`; 
                                 } else if (context.dataset.label.includes('Schmerz')) { 
@@ -1683,7 +1855,6 @@
                     blutzuckerSum: 0, blutzuckerCount: 0,
                     blutdruckSysSum: 0, blutdruckSysCount: 0,
                     blutdruckDiaSum: 0, blutdruckDiaCount: 0,
-                    // NEU: BMI für Chart-Anzeige
                     bmiSum: 0, bmiCount: 0,
                 }; 
             }
@@ -1692,7 +1863,6 @@
             if (entry.blutzucker !== null) { acc[dateKey].blutzuckerSum += entry.blutzucker; acc[dateKey].blutzuckerCount++; }
             if (entry.blutdruckSys !== null) { acc[dateKey].blutdruckSysSum += entry.blutdruckSys; acc[dateKey].blutdruckSysCount++; }
             if (entry.blutdruckDia !== null) { acc[dateKey].blutdruckDiaSum += entry.blutdruckDia; acc[dateKey].blutdruckDiaCount++; }
-            // NEU: BMI
             if (entry.bmi !== null && entry.bmi !== 'N/A' && !isNaN(parseFloat(entry.bmi))) {
                 acc[dateKey].bmiSum += parseFloat(entry.bmi);
                 acc[dateKey].bmiCount++;
@@ -1710,11 +1880,11 @@
                 blutzucker: data.blutzuckerCount > 0 ? data.blutzuckerSum / data.blutzuckerCount : null,
                 blutdruckSys: data.blutdruckSysCount > 0 ? data.blutdruckSysSum / data.blutdruckSysCount : null,
                 blutdruckDia: data.blutdruckDiaCount > 0 ? data.blutdruckDiaSum / data.blutdruckDiaCount : null,
-                bmi: data.bmiCount > 0 ? data.bmiSum / data.bmiCount : null, // NEU
+                bmi: data.bmiCount > 0 ? data.bmiSum / data.bmiCount : null, 
             };
         });
 
-        const hasVitalData = chartData.some(d => d.puls || d.gewicht || d.blutzucker || d.blutdruckSys || d.blutdruckDia || d.bmi); // NEU: BMI
+        const hasVitalData = chartData.some(d => d.puls || d.gewicht || d.blutzucker || d.blutdruckSys || d.blutdruckDia || d.bmi); 
 
         if (!hasVitalData) {
             vitalChartStatusEl.classList.remove('hidden');
@@ -1740,13 +1910,11 @@
         const BLUTZUCKER_COLOR_CHART = '#d97706'; 
         const BLUTDRUCK_SYS_COLOR_CHART = '#06b6d4'; 
         const BLUTDRUCK_DIA_COLOR_CHART = '#60a5fa'; 
-        const BMI_COLOR_CHART = '#4f46e5'; // Indigo 600 (NEU)
+        const BMI_COLOR_CHART = '#4f46e5'; 
 
-        // Finde min/max für die BMI-Skala (wenn BMI-Daten vorhanden)
         const bmiValues = chartData.map(d => d.bmi).filter(v => v !== null);
         const bmiMin = bmiValues.length > 0 ? Math.floor(Math.min(...bmiValues) - 2) : 15;
         const bmiMax = bmiValues.length > 0 ? Math.ceil(Math.max(...bmiValues) + 2) : 35;
-        // Max/Min für Gewicht skalieren (optional)
         const gewichtValues = chartData.map(d => d.gewicht).filter(v => v !== null);
         const gewichtMin = gewichtValues.length > 0 ? Math.floor(Math.min(...gewichtValues) / 5) * 5 : 50;
         const gewichtMax = gewichtValues.length > 0 ? Math.ceil(Math.max(...gewichtValues) / 5) * 5 : 100;
@@ -1784,7 +1952,6 @@
                         backgroundColor: 'rgba(96, 165, 250, 0.2)',
                         borderWidth: 2, tension: 0.3, pointRadius: 4, yAxisID: 'blutdruck', order: 5,
                     },
-                    // NEU: BMI Dataset (eigene Y-Achse, rechts)
                     {
                         label: 'Ø BMI',
                         data: chartData.map(d => d.bmi),
@@ -1792,7 +1959,6 @@
                         backgroundColor: 'rgba(79, 70, 229, 0.2)',
                         borderWidth: 3, tension: 0.3, pointRadius: 5, yAxisID: 'bmi', order: 6,
                     },
-                    // Gewicht als letztes, damit es nicht die Hauptlinien verdeckt
                     {
                         label: 'Ø Gewicht (kg)',
                         data: chartData.map(d => d.gewicht),
@@ -1810,7 +1976,6 @@
                     gewicht: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 100, title: { display: true, text: 'Gewicht (kg)', color: GEWICHT_COLOR_CHART }, ticks: { color: GEWICHT_COLOR_CHART, callback: (v) => v.toFixed(1) } },
                     blutzucker: { type: 'linear', position: 'left', grid: { drawOnChartArea: false }, min: 70, max: 200, title: { display: true, text: 'Blutzucker (mg/dL)', color: BLUTZUCKER_COLOR_CHART }, ticks: { color: BLUTZUCKER_COLOR_CHART, callback: (v) => v.toFixed(0) } },
                     blutdruck: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, min: 50, max: 180, title: { display: true, text: 'Blutdruck (mmHg)', color: BLUTDRUCK_SYS_COLOR_CHART }, ticks: { color: BLUTDRUCK_SYS_COLOR_CHART, callback: (v) => v.toFixed(0) } },
-                    // NEU: BMI Achse
                     bmi: {
                         type: 'linear', position: 'right', grid: { drawOnChartArea: false }, 
                         min: bmiMin, max: bmiMax,
@@ -1831,7 +1996,7 @@
                                     if (context.dataset.label.includes('Blutzucker')) return label + `${context.parsed.y.toFixed(0)} mg/dL`;
                                     if (context.dataset.label.includes('Puls')) return label + `${context.parsed.y.toFixed(0)} BPM`;
                                     if (context.dataset.label.includes('Blutdruck')) return label + `${context.parsed.y.toFixed(0)} mmHg`;
-                                    if (context.dataset.label.includes('BMI')) return label + `${context.parsed.y.toFixed(1)}`; // NEU
+                                    if (context.dataset.label.includes('BMI')) return label + `${context.parsed.y.toFixed(1)}`; 
                                 }
                                 return label + 'N/A';
                             }
@@ -1853,7 +2018,6 @@
         let totalCount = 0;
 
         dataToUse.forEach(entry => {
-            // Sicherstellen, dass schmerzRegionen existiert und ein Array ist
             if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
                 entry.schmerzRegionen.forEach(region => {
                     if (regionCounts.hasOwnProperty(region)) {
@@ -1915,13 +2079,9 @@
                     },
                     tooltip: {
                         callbacks: {
-                            // **KORREKTUR: Manuelle Berechnung des Totalwerts zur Vermeidung von NaN%**
                             label: function(context) {
                                 const count = context.parsed;
-                                // Die Gesamtsumme aus den Daten des aktuellen Datensatzes berechnen
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0); 
-                                
-                                // Vermeide Division durch Null
                                 const percentage = total === 0 ? '0.0%' : ((count / total) * 100).toFixed(1) + '%';
                                 
                                 return `${context.label}: ${count} mal (${percentage})`;
@@ -1938,6 +2098,7 @@
 </script>
 
 <script>
+    // Service Worker Logik zur PWA-Unterstützung (bleibt unverändert)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
