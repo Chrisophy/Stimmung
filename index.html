@@ -44,7 +44,7 @@
             font-size: 1.5rem; 
             padding: 0.1rem 0.5rem; 
             line-height: 1; 
-            transition: color 0.1s; 
+            transition: color 0.1s, transform 0.1s; 
             z-index: 10;
         }
         .delete-entry-btn:hover { color: #ef4444; transform: scale(1.1); }
@@ -58,23 +58,16 @@
             bottom: 20px;    /* 20px vom unteren Rand */
             right: 20px;     /* 20px vom rechten Rand */
             z-index: 1001;   /* Über allen anderen Elementen */
-            background-color: rgba(79, 70, 229, 0.8); /* Indigo-Hintergrund, leicht transparent */
+            background-color: rgba(255,255,255,0.2)
             color: white;
             padding: 0.5rem;
-            width: 44px; /* Feste Größe */
-            height: 44px; /* Feste Größe */
-            display: flex; /* Für Zentrierung */
-            align-items: center;
-            justify-content: center;
-            border-radius: 9px; 
+            border-radius: 9px; /* Macht den Button kreisförmig */
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.2s, transform 0.1s;
             display: none; /* Standardmäßig versteckt, wird per JS eingeblendet */
-            font-size: 1.25rem;
-            line-height: 1;
         }
         .scroll-to-top:hover {
-            background-color: #4f46e5;
+            background-color: rgba(255,255,255,0.2);
         }
         .scroll-to-top:active {
             transform: scale(0.95);
@@ -137,16 +130,7 @@
         <div class="mb-6">
             <p class="font-medium mb-2">3. Schmerzintensität (0-10):</p>
             <div id="pain-selection" class="flex flex-wrap justify-center sm:justify-between gap-1">
-                <script>
-                    for(let i = 0; i <= 10; i++) { 
-                        document.write(`
-                            <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${i === 0 ? 'Keine Schmerzen' : i === 10 ? 'Stärkste Schmerzen' : 'Schmerzstufe ' + i}">
-                                ${i}
-                            </button>
-                        `);
-                    }
-                </script>
-            </div>
+                </div>
         </div>
 
         <div class="mb-6">
@@ -423,7 +407,7 @@
         </button>
         <h2 class="text-2xl font-extrabold text-indigo-700 mb-4">🧑‍🤝‍🧑 Benutzerverwaltung</h2>
         
-        <div class="mb-4">
+        <div class="mb-4 pb-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold mb-2">Benutzer wechseln</h3>
             <select id="user-list-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                 <option value="" disabled>Wähle einen Benutzer</option>
@@ -433,7 +417,7 @@
             </button>
         </div>
         
-        <div class="border-t pt-4 mt-4">
+        <div class="mb-4 pb-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold mb-2">Neuen Benutzer hinzufügen</h3>
             <input type="text" id="new-user-name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" placeholder="Name des neuen Benutzers">
             <button id="add-user-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-150 shadow-md mt-2 disabled:opacity-50">
@@ -441,7 +425,18 @@
             </button>
             <p id="user-status-message" class="mt-2 text-sm text-center font-medium h-4"></p>
         </div>
-    </div>
+
+        <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2 text-red-800">❌ Benutzer dauerhaft löschen</h3>
+            <p class="text-sm text-red-600 mb-3 font-medium">ACHTUNG: Dies löscht ALLE Tagebucheinträge und Vitaldaten dieses Benutzers unwiderruflich!</p>
+            <select id="user-delete-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500">
+                <option value="" disabled>Wähle einen zu löschenden Benutzer</option>
+            </select>
+            <button id="delete-user-btn" class="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-150 shadow-md mt-2 disabled:opacity-50" disabled>
+                Ausgewählten Benutzer löschen
+            </button>
+        </div>
+        </div>
 </div>
 <button id="scrollToTopBtn" class="scroll-to-top" title="Zum Seitenanfang scrollen">
     ⬆️
@@ -523,6 +518,9 @@
     const addUserBtn = document.getElementById('add-user-btn');
     const currentUserDisplay = document.getElementById('current-user-display');
     const userStatusMessage = document.getElementById('user-status-message');
+    // NEU: Elemente für Benutzer löschen
+    const userDeleteSelect = document.getElementById('user-delete-select');
+    const deleteUserBtn = document.getElementById('delete-user-btn');
 
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
     const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
@@ -587,7 +585,7 @@
     function getSavedUsers() {
         try {
             const users = localStorage.getItem(USER_LIST_KEY);
-            return users ? JSON.parse(users) : ['Default']; 
+            return users ? JSON.parse(users).sort((a, b) => a.localeCompare(b)) : ['Default']; 
         } catch (e) {
             console.error("Fehler beim Laden der Benutzerliste:", e);
             return ['Default'];
@@ -627,6 +625,57 @@
         window.location.reload(); 
     }
 
+    function populateUserDeleteList() {
+        const users = getSavedUsers();
+        userDeleteSelect.innerHTML = '<option value="" disabled selected>Wähle einen zu löschenden Benutzer</option>';
+        let hasDeletableUser = false;
+        
+        users.forEach(user => {
+            if (user !== activeUser) {
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = user;
+                userDeleteSelect.appendChild(option);
+                hasDeletableUser = true;
+            }
+        });
+        
+        if (!hasDeletableUser) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Keine anderen Benutzer verfügbar';
+            userDeleteSelect.appendChild(option);
+            userDeleteSelect.disabled = true;
+            deleteUserBtn.disabled = true;
+        } else {
+            userDeleteSelect.disabled = false;
+        }
+    }
+
+    function handleDeleteUser() {
+        const userToDelete = userDeleteSelect.value;
+        if (!userToDelete) return;
+        
+        if (!confirm(`SIND SIE SICHER? Alle Daten (Einträge und Vitaldaten) des Benutzers "${userToDelete}" werden unwiderruflich gelöscht!`)) {
+            return;
+        }
+
+        // 1. Daten aus localStorage löschen
+        localStorage.removeItem(LOCAL_STORAGE_KEY_BASE + userToDelete);
+        localStorage.removeItem(USER_VITAL_INFO_KEY_BASE + userToDelete);
+        
+        // 2. Benutzer aus der Benutzerliste entfernen
+        let users = getSavedUsers();
+        users = users.filter(u => u !== userToDelete);
+        saveUsers(users);
+
+        userStatusMessage.textContent = `Benutzer "${userToDelete}" und seine Daten wurden gelöscht.`;
+        userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-green-600 h-4';
+        
+        // 3. Modal neu befüllen (Löschliste aktualisieren)
+        populateUserModal();
+    }
+    
     function populateUserModal() {
         const users = getSavedUsers();
         userListSelect.innerHTML = '';
@@ -638,9 +687,11 @@
         });
         userListSelect.value = activeUser;
         switchUserBtn.disabled = true; 
+        
+        populateUserDeleteList(); // NEU: Löschliste füllen
+
         newUserNameInput.value = '';
         addUserBtn.disabled = true;
-        userStatusMessage.textContent = '';
         userModal.classList.add('modal-show');
     }
 
@@ -674,6 +725,28 @@
         addUserBtn.disabled = true;
     }
     // --------------------------------------------------------------------------------
+
+    // NEU: Hilfsfunktion zur Generierung der Schmerzbuttons
+    function generatePainButtons() {
+        let html = '';
+        for (let i = 0; i <= 10; i++) {
+            let title = '';
+            if (i === 0) {
+                title = 'Keine Schmerzen';
+            } else if (i === 10) {
+                title = 'Stärkste Schmerzen';
+            } else {
+                title = 'Schmerzstufe ' + i;
+            }
+
+            html += `
+                <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${title}">
+                    ${i}
+                </button>
+            `;
+        }
+        painSelectionEl.innerHTML = html;
+    }
 
 
     function calculateBMI(weightKg, heightCm) {
@@ -757,6 +830,7 @@
         geburtsdatumEl.value = userVitalInfo.geburtsdatum || '';
         koerpergroesseEl.value = userVitalInfo.koerpergroesse || '';
         
+        generatePainButtons(); // NEU: Buttons hier generieren
         preselectTimePeriod(); 
         calculateAndDisplayBMI(); 
         renderSortedHistory(allStoredEntries, true); 
@@ -1054,9 +1128,17 @@
             if (e.target === userModal) { userModal.classList.remove('modal-show'); }
         });
         userListSelect.addEventListener('change', () => { switchUserBtn.disabled = userListSelect.value === activeUser; });
-        newUserNameInput.addEventListener('input', () => { addUserBtn.disabled = newUserNameInput.value.trim() === ''; });
+        newUserNameInput.addEventListener('input', () => { 
+            const name = newUserNameInput.value.trim();
+            const users = getSavedUsers().map(u => u.toLowerCase());
+            addUserBtn.disabled = name === '' || users.includes(name.toLowerCase()); 
+        });
         switchUserBtn.addEventListener('click', handleSwitchUser);
         addUserBtn.addEventListener('click', handleAddUser);
+        
+        // NEU: Listener für Benutzer löschen
+        userDeleteSelect.addEventListener('change', () => { deleteUserBtn.disabled = userDeleteSelect.value === ''; });
+        deleteUserBtn.addEventListener('click', handleDeleteUser);
 
 
         checkFormValidity();
@@ -1979,8 +2061,7 @@
                     bmi: {
                         type: 'linear', position: 'right', grid: { drawOnChartArea: false }, 
                         min: bmiMin, max: bmiMax,
-                        title: { display: true, text: 'BMI', color: BMI_COLOR_CHART },
-                        ticks: { color: BMI_COLOR_CHART, callback: (v) => v.toFixed(1) }
+                        title: { display: true, text: 'BMI', color: BMI_COLOR_CHART }, ticks: { color: BMI_COLOR_CHART, callback: (v) => v.toFixed(1) }
                     },
                     x: { beginAtZero: false, }
                 },
