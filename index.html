@@ -1854,7 +1854,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Ø Stimmung (1-5)',
+                        label: 'Ø Stimmung',
                         data: moodData,
                         borderColor: '#4f46e5', 
                         backgroundColor: 'rgba(79, 70, 229, 0.2)',
@@ -1866,7 +1866,7 @@
                         order: 1,
                     },
                     {
-                        label: 'Ø Schmerz (0-10)', 
+                        label: 'Ø Schmerz', 
                         data: painData,
                         borderColor: '#9333ea', 
                         backgroundColor: 'rgba(147, 51, 234, 0.3)',
@@ -2046,7 +2046,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Ø Puls (BPM)',
+                        label: 'Ø Puls',
                         data: chartData.map(d => d.puls),
                         borderColor: PULS_COLOR_CHART, 
                         backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -2081,7 +2081,7 @@
                         borderWidth: 3, tension: 0.3, pointRadius: 5, yAxisID: 'bmi', order: 6,
                     },
                     {
-                        label: 'Ø Gewicht (kg)',
+                        label: 'Ø Gewicht',
                         data: chartData.map(d => d.gewicht),
                         borderColor: GEWICHT_COLOR_CHART, 
                         backgroundColor: 'rgba(219, 39, 119, 0.2)', 
