@@ -1,0 +1,1790 @@
+    const LOCAL_STORAGE_KEY_BASE = 'stimmungstagebuch_data_';
+    const USER_VITAL_INFO_KEY_BASE = 'user_vital_info_'; 
+    const ACTIVE_USER_KEY = 'active_stimmungs_user';
+    const USER_LIST_KEY = 'stimmungs_user_list';
+    
+    if (typeof Chart !== 'undefined') {
+    	Chart.defaults.font.size = 11;
+    	Chart.defaults.maintainAspectRatio = false;
+    	Chart.defaults.responsive = false; // Wir steuern die Breite manuell über die Container-Logik
+}
+
+    
+    let activeUser = 'Standard'; 
+    
+    let selectedPeriod = null;
+    let selectedMood = null;
+    let selectedPain = null; 
+    let selectedSleepQuality = 0;
+    let allStoredEntries = []; 
+    let userVitalInfo = {}; 
+
+    const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
+    let currentTemperatureData = null; 
+    let userLatitude = null; 
+    let userLongitude = null; 
+    let lastFetchedDate = null; 
+    const PERIOD_TIME_MAP = { 'Nacht': 3, 'Morgen': 9, 'Mittag': 13, 'Abend': 19 };
+    const AUTO_PERIOD_MAP = [ { name: 'Nacht', startHour: 0, endHour: 5 }, { name: 'Morgen', startHour: 5, endHour: 12 }, { name: 'Mittag', startHour: 12, endHour: 18 }, { name: 'Abend', startHour: 18, endHour: 24 } ];
+    const WMO_CODE_MAP = { 0: 'Klarer Himmel ☀️', 1: 'Hauptsächlich klar 🌤️', 2: 'Teilweise bewölkt 🌥️', 3: 'Bedeckt ☁️', 45: 'Nebel 🌫️', 48: 'Reif-/Glätte-Nebel 🌫️', 51: 'Leichter Nieselregen 🌧️', 53: 'Mäßiger Nieselregen 🌧️', 55: 'Starker Nieselregen 🌧️', 56: 'Leichter gefrierender Nieselregen 🌨️', 57: 'Starker gefrierender Nieselregen 🌨️', 61: 'Leichter Regen 🌧️', 63: 'Mäßiger Regen 🌧️', 65: 'Starker Regen 🌧️', 66: 'Leichter gefrierender Regen ❄️', 67: 'Starker gefrierender Regen ❄️', 71: 'Leichter Schneefall 🌨️', 73: 'Mäßiger Schneefall 🌨️', 75: 'Starker Schneefall 🌨️', 77: 'Schneegriesel ❄️', 80: 'Leichte Regenschauer 🌦️', 81: 'Mäßige Regenschauer 🌦️', 82: 'Starke Regenschauer ⛈️', 85: 'Leichte Schneeschauer 🌨️', 86: 'Starke Schneeschauer 🌨️', 95: 'Gewitter (leicht/mäßig) 🌩️', 96: 'Gewitter mit leichtem Hagel ⛈️', 99: 'Gewitter mit starkem Hagel ⛈️' };
+    const PAIN_REGION_NAMES = { 'oben': 'Oben', 'mitte': 'Mitte', 'unten': 'Unten' };
+    const entryDateEl = document.getElementById('entry-date'); 
+    const timePeriodsEl = document.getElementById('time-periods');
+    const moodSelectionEl = document.getElementById('mood-selection');
+    const painSelectionEl = document.getElementById('pain-selection'); 
+    const painRegionsFieldset = document.getElementById('pain-regions'); 
+    const pulsEl = document.getElementById('puls'); 
+    const gewichtEl = document.getElementById('gewicht'); 
+    const blutzuckerEl = document.getElementById('blutzucker'); 
+    const blutdruckSysEl = document.getElementById('blutdruckSys'); 
+    const blutdruckDiaEl = document.getElementById('blutdruckDia');
+    const noteEl = document.getElementById('note');
+    const saveButton = document.getElementById('save-entry');
+    const statusMessageEl = document.getElementById('status-message');
+    const historyContainerEl = document.getElementById('history-container');
+    const loadingHistoryEl = document.getElementById('loading-history');
+    const noEntriesEl = document.getElementById('no-entries');
+    const resetButton = document.getElementById('reset-data'); 
+    const resetStatusEl = document.getElementById('reset-status'); 
+    const weatherStatusEl = document.getElementById('weather-status'); 
+    const yearFilterEl = document.getElementById('year-filter'); 
+    const monthFilterEl = document.getElementById('month-filter');
+    const statsContainerEl = document.getElementById('stats-container');
+    const jsonFileInput = document.getElementById('json-file-input');
+    const importButton = document.getElementById('import-data');
+    const importStatusEl = document.getElementById('import-status');
+    const exportButton = document.getElementById('export-data');
+    const exportChartButton = document.getElementById('export-chart-button');
+    const exportPainChartButton = document.getElementById('export-pain-chart-button'); 
+    const exportVitalChartButton = document.getElementById('export-vital-chart-button');
+    const helpButton = document.getElementById('help-button');
+    const helpModal = document.getElementById('help-modal');
+    const closeModalButton = document.getElementById('close-modal');
+    const geburtsdatumEl = document.getElementById('geburtsdatum');
+    const koerpergroesseEl = document.getElementById('koerpergroesse');
+    const bmiDisplayEl = document.getElementById('bmi-display');
+    
+    const manageUsersBtn = document.getElementById('manage-users-btn');
+    const userModal = document.getElementById('user-modal');
+    const closeUserModalBtn = document.getElementById('close-user-modal');
+    const userListSelect = document.getElementById('user-list-select');
+    const switchUserBtn = document.getElementById('switch-user-btn');
+    const newUserNameInput = document.getElementById('new-user-name');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const currentUserDisplay = document.getElementById('current-user-display');
+    const userStatusMessage = document.getElementById('user-status-message');
+
+    const userDeleteSelect = document.getElementById('user-delete-select');
+    const deleteUserBtn = document.getElementById('delete-user-btn');
+
+    entryDateEl.value = new Date().toISOString().split('T')[0]; 
+    const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
+    window.MOOD_NAMES = { 'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht' };
+    window.MOOD_VALUES = { 'sehr_schlecht': 0, 'schlecht': 1, 'neutral': 2, 'gut': 3, 'sehr_gut': 4 };
+    const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
+
+    function getLocalStorageKey() {
+        return LOCAL_STORAGE_KEY_BASE + activeUser;
+    }
+
+    function getUserVitalInfoKey() {
+        return USER_VITAL_INFO_KEY_BASE + activeUser;
+    }
+
+
+    function loadUserVitalInfo() {
+        try {
+            const data = localStorage.getItem(getUserVitalInfoKey());
+            userVitalInfo = data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error("Fehler beim Laden der Benutzer-Vitaldaten:", e);
+            userVitalInfo = {};
+        }
+    }
+    
+    function saveUserVitalInfo(geburtsdatum, koerpergroesse) {
+        userVitalInfo.geburtsdatum = geburtsdatum;
+        userVitalInfo.koerpergroesse = koerpergroesse;
+        try {
+            localStorage.setItem(getUserVitalInfoKey(), JSON.stringify(userVitalInfo));
+        } catch (e) {
+            console.error("Fehler beim Speichern der Benutzer-Vitaldaten:", e);
+        }
+    }
+
+    function loadEntriesFromLocalStorage() {
+        try {
+            const data = localStorage.getItem(getLocalStorageKey());
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error("Fehler beim Laden aus localStorage:", e);
+            return [];
+        }
+    }
+
+    function saveEntriesToLocalStorage(entries) {
+        try {
+            localStorage.setItem(getLocalStorageKey(), JSON.stringify(entries));
+            allStoredEntries = entries; 
+        } catch (e) {
+            console.error("Fehler beim Speichern in localStorage:", e);
+        }
+    }
+    
+    function getSavedUsers() {
+        try {
+            const users = localStorage.getItem(USER_LIST_KEY);
+            return users ? JSON.parse(users).sort((a, b) => a.localeCompare(b)) : ['Standard']; 
+        } catch (e) {
+            console.error("Fehler beim Laden der Benutzerliste:", e);
+            return ['Standard'];
+        }
+    }
+
+    function saveUsers(users) {
+        try {
+            localStorage.setItem(USER_LIST_KEY, JSON.stringify(users));
+        } catch (e) {
+            console.error("Fehler beim Speichern der Benutzerliste:", e);
+        }
+    }
+    
+    function loadActiveUser() {
+        const users = getSavedUsers();
+        const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
+        
+        if (savedUser && users.includes(savedUser)) {
+            activeUser = savedUser;
+        } else {
+            activeUser = users[0] || 'Standard';
+            if (!users.includes('Standard')) {
+                users.push('Standard');
+                saveUsers(users);
+            }
+            localStorage.setItem(ACTIVE_USER_KEY, activeUser);
+        }
+        currentUserDisplay.textContent = activeUser;
+    }
+    
+    function switchToUser(username) {
+        if (username === activeUser) return;
+        localStorage.setItem(ACTIVE_USER_KEY, username);
+
+        window.location.reload(); 
+    }
+
+    function populateUserDeleteList() {
+        const users = getSavedUsers();
+        userDeleteSelect.innerHTML = '<option value="" disabled selected>Wähle einen zu löschenden Benutzer</option>';
+        let hasDeletableUser = false;
+        
+        users.forEach(user => {
+            if (user !== activeUser) {
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = user;
+                userDeleteSelect.appendChild(option);
+                hasDeletableUser = true;
+            }
+        });
+        
+        if (!hasDeletableUser) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Keine anderen Benutzer verfügbar';
+            userDeleteSelect.appendChild(option);
+            userDeleteSelect.disabled = true;
+            deleteUserBtn.disabled = true;
+        } else {
+            userDeleteSelect.disabled = false;
+        }
+    }
+
+    function handleDeleteUser() {
+        const userToDelete = userDeleteSelect.value;
+        if (!userToDelete) return;
+        
+        if (!confirm(`SIND SIE SICHER? Alle Daten (Einträge und Vitaldaten) des Benutzers "${userToDelete}" werden unwiderruflich gelöscht!`)) {
+            return;
+        }
+
+        localStorage.removeItem(LOCAL_STORAGE_KEY_BASE + userToDelete);
+        localStorage.removeItem(USER_VITAL_INFO_KEY_BASE + userToDelete);
+        
+
+        let users = getSavedUsers();
+        users = users.filter(u => u !== userToDelete);
+        saveUsers(users);
+
+        userStatusMessage.textContent = `Benutzer "${userToDelete}" und seine Daten wurden gelöscht.`;
+        userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-green-600 h-4';
+        
+
+        populateUserModal();
+    }
+    
+    function populateUserModal() {
+        const users = getSavedUsers();
+        userListSelect.innerHTML = '';
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user;
+            option.textContent = user + (user === activeUser ? ' (Aktiv)' : '');
+            userListSelect.appendChild(option);
+        });
+        userListSelect.value = activeUser;
+        switchUserBtn.disabled = true; 
+        
+        populateUserDeleteList();
+
+        newUserNameInput.value = '';
+        addUserBtn.disabled = true;
+        userModal.classList.add('modal-show');
+    }
+
+    function handleSwitchUser() {
+        const selectedUser = userListSelect.value;
+        if (selectedUser && selectedUser !== activeUser) {
+            switchToUser(selectedUser);
+        }
+    }
+
+    function handleAddUser() {
+        const newName = newUserNameInput.value.trim();
+        if (!newName) {
+            userStatusMessage.textContent = 'Bitte einen Namen eingeben.';
+            userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-red-600 h-4';
+            return;
+        }
+        let users = getSavedUsers();
+        if (users.map(u => u.toLowerCase()).includes(newName.toLowerCase())) {
+            userStatusMessage.textContent = `Benutzer "${newName}" existiert bereits.`;
+            userStatusMessage.className = 'mt-2 text-sm text-center font-medium text-red-600 h-4';
+            return;
+        }
+        users.push(newName);
+        saveUsers(users);
+        populateUserModal(); 
+        userStatusMessage.textContent = `Benutzer "${newName}" hinzugefügt. Jetzt wechseln!`;
+        userStatusMessage.className = 'mt-2 text-sm font-medium text-green-600 h-4';
+        userListSelect.value = newName; 
+        switchUserBtn.disabled = false;
+        addUserBtn.disabled = true;
+    }
+
+    function generatePainButtons() {
+        let html = '';
+        for (let i = 0; i <= 10; i++) {
+            let title = '';
+            if (i === 0) {
+                title = 'Keine Schmerzen';
+            } else if (i === 10) {
+                title = 'Stärkste Schmerzen';
+            } else {
+                title = 'Schmerzstufe ' + i;
+            }
+
+            html += `
+                <button class="pain-button text-sm w-8 h-8 rounded-full border border-gray-300 transition duration-100 hover:bg-red-100" data-pain="${i}" title="${title}">
+                    ${i}
+                </button>
+            `;
+        }
+        painSelectionEl.innerHTML = html;
+    }
+
+
+    function calculateBMI(weightKg, heightCm) {
+    	if (weightKg && heightCm && weightKg > 0 && heightCm > 0) {
+        	const heightM = heightCm / 100;
+        	return (weightKg / (heightM * heightM)).toFixed(1);
+    	}
+    	return 'N/A';
+	}
+
+	function calculateAndDisplayBMI() {
+    // Holen der Werte aus den Feldern
+    	let weight = getNumericValue(gewichtEl);
+    	let height = getNumericValue(koerpergroesseEl);
+    
+    	// Falls das Feld leer ist (beim ersten Laden), nimm den gespeicherten Wert
+    	if (!height && userVitalInfo && userVitalInfo.koerpergroesse) {
+        	height = parseFloat(userVitalInfo.koerpergroesse);
+    	}
+
+    	const bmi = calculateBMI(weight, height);
+    
+    	if (bmiDisplayEl) {
+        	bmiDisplayEl.value = bmi;
+        
+        
+        	bmiDisplayEl.className = `w-full p-2 border border-gray-300 rounded-lg text-center font-bold 
+            	${bmi === 'N/A' ? 'bg-gray-100' : 
+            	bmi < 18.5 ? 'bg-blue-200 text-blue-800' : 
+            	bmi < 25 ? 'bg-green-200 text-green-800' : 
+            	bmi < 30 ? 'bg-yellow-200 text-yellow-800' : 
+            	'bg-red-200 text-red-800'}`;
+    	}
+	}
+	
+    function preselectTimePeriod() {
+        document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+        selectedPeriod = null; 
+        const currentHour = new Date().getHours();
+        let periodToSelect = null;
+        for (const period of AUTO_PERIOD_MAP) {
+            if (currentHour >= period.startHour && currentHour < period.endHour) {
+                periodToSelect = period.name;
+                break;
+            }
+        }
+        if (periodToSelect) {
+            const btn = document.querySelector(`.period-button[data-period="${periodToSelect}"]`);
+            if (btn) {
+                selectedPeriod = periodToSelect;
+                btn.classList.add('selected-period');
+            }
+        }
+    }
+    
+    function resetInputFields() {
+        document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+        document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+        document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
+        
+        selectedPeriod = null;
+        selectedMood = null;
+        selectedPain = null; 
+        
+        // --- NEU: Schlaf-Sterne zurücksetzen ---
+        selectedSleepQuality = 0; 
+        document.querySelectorAll('.star-rating').forEach(s => {
+            s.classList.add('opacity-30');
+            s.classList.remove('opacity-100');
+        });
+        // ---------------------------------------
+
+        entryDateEl.value = new Date().toISOString().split('T')[0]; 
+        
+        painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+        pulsEl.value = '';
+        gewichtEl.value = '';
+
+        blutzuckerEl.value = '';
+        blutdruckSysEl.value = '';
+        blutdruckDiaEl.value = '';
+        noteEl.value = '';
+
+        calculateAndDisplayBMI();
+        preselectTimePeriod(); 
+        checkFormValidity();
+        updateWeatherDisplayForSelectedPeriod();
+        fetchWeather(entryDateEl.value); 
+    }
+
+
+    function setupApp() {
+        loadActiveUser();
+        allStoredEntries = loadEntriesFromLocalStorage(); 
+        loadUserVitalInfo(); 
+        
+        geburtsdatumEl.value = userVitalInfo.geburtsdatum || '';
+        koerpergroesseEl.value = userVitalInfo.koerpergroesse || '';
+        
+        generatePainButtons(); 
+        preselectTimePeriod(); 
+        calculateAndDisplayBMI(); 
+        renderSortedHistory(allStoredEntries, true); 
+        fetchWeather(entryDateEl.value); 
+    }
+    function updateWeatherDisplayForSelectedPeriod() {
+        if (userLatitude === null || userLongitude === null) {
+            if (weatherStatusEl.textContent.includes('Timeout') || weatherStatusEl.textContent.includes('verweigert')) {
+                return; 
+            }
+            if (!weatherStatusEl.textContent.includes('Lade Standort')) {
+                 weatherStatusEl.textContent = 'Standort nicht verfügbar. Eintrag ohne Wetter.';
+            }
+            return;
+        }
+
+        if (!selectedPeriod) {
+            weatherStatusEl.textContent = 'Wählen Sie einen Zeitraum für die Wetterinformation.';
+            return;
+        }
+        const weather = getWeatherDataForPeriod(selectedPeriod, entryDateEl.value);
+        if (weather.temperature !== null) {
+            weatherStatusEl.textContent = `✅ Wetter für ${selectedPeriod}: ${weather.temperature}°C, ${weather.weatherCondition}`;
+        } else if (currentTemperatureData === null || currentTemperatureData.length === 0) {
+            weatherStatusEl.textContent = 'Lade Wetterdaten...'; 
+        } else {
+            weatherStatusEl.textContent = '⚠️ Keine präzisen Wetterdaten für diese Zeit gefunden.';
+        }
+    }
+    
+    let retryCount = 0; 
+    const MAX_RETRIES = 2; 
+
+    async function fetchWeather(targetDateStr) {
+        if (!targetDateStr) return; 
+        
+        if (userLatitude !== null && userLongitude !== null && lastFetchedDate && currentTemperatureData && currentTemperatureData.length > 0) {
+            const targetTime = new Date(targetDateStr).getTime();
+            const loadedStartTime = new Date(lastFetchedDate).getTime();
+            const fourteenDaysInMs = 14 * 24 * 60 * 60 * 1000;
+            const loadedEndTime = loadedStartTime + fourteenDaysInMs;
+            
+            if (targetTime >= loadedStartTime && targetTime < loadedEndTime) {
+                updateWeatherDisplayForSelectedPeriod();
+                checkFormValidity(); 
+                retryCount = 0;
+                return;
+            }
+        }
+        
+        if (userLatitude === null || retryCount > 0) { 
+            if (!navigator.geolocation) {
+                weatherStatusEl.textContent = 'Geolocation wird nicht unterstützt. Wetterdaten nicht verfügbar.';
+                checkFormValidity(); 
+                userLatitude = null; userLongitude = null; 
+                updateWeatherDisplayForSelectedPeriod();
+                return;
+            }
+
+            if (retryCount === 0) {
+                weatherStatusEl.textContent = 'Lade Standort... (Bitte erlauben Sie den Zugriff)';
+            } else {
+                weatherStatusEl.textContent = `Standort-Timeout! Starte Versuch ${retryCount + 1}/${MAX_RETRIES + 1} ...`;
+            }
+
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                        timeout: 5000,
+                        enableHighAccuracy: false 
+                    });
+                });
+                userLatitude = position.coords.latitude; 
+                userLongitude = position.coords.longitude; 
+                retryCount = 0;
+            } catch (error) {
+                console.error("Fehler beim Abrufen des Standorts:", error);
+                
+                if (error.code === error.TIMEOUT && retryCount < MAX_RETRIES) {
+                    retryCount++; 
+                    console.warn(`Geolocation Timeout (Versuch ${retryCount}/${MAX_RETRIES}). Starte sofort erneute Abfrage...`);
+                    return fetchWeather(targetDateStr); 
+                }
+
+                if (error.code === error.PERMISSION_DENIED) {
+                     weatherStatusEl.textContent = '❌ Standortzugriff verweigert. Eintrag ohne Wetter.';
+                } else if (error.code === error.TIMEOUT) {
+                     weatherStatusEl.textContent = `❌ Standortabfrage-Timeout nach ${MAX_RETRIES + 1} Versuchen. Eintrag ohne Wetter.`;
+                } else {
+                     weatherStatusEl.textContent = '❌ Fehler beim Laden des Standorts. Eintrag ohne Wetter.';
+                }
+
+                userLatitude = null; 
+                userLongitude = null; 
+                currentTemperatureData = null; 
+                retryCount = 0;
+                updateWeatherDisplayForSelectedPeriod(); 
+                checkFormValidity(); 
+                return; 
+            }
+        } 
+        
+        weatherStatusEl.textContent = `Wetterdaten für ${window.formatDateShort(targetDateStr)} abrufen...`;
+        await fetchWeatherData(userLatitude, userLongitude, targetDateStr);
+        updateWeatherDisplayForSelectedPeriod(); 
+        checkFormValidity(); 
+    }
+
+
+    async function fetchWeatherData(lat, lon, startDateStr) {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 14); 
+        const startDateFormatted = startDateStr;
+        const endDateFormatted = endDate.toISOString().split('T')[0];
+        const url = `${WEATHER_API_BASE_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&timezone=auto&start_date=${startDateFormatted}&end_date=${endDateFormatted}`; 
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`API Fehler: ${response.status}`);
+            const data = await response.json();
+            const hourlyData = data.hourly.time.map((timestamp, index) => ({
+                timestamp: new Date(timestamp).getTime(), 
+                temp: data.hourly.temperature_2m[index],
+                wmoCode: data.hourly.weathercode[index] 
+            }));
+            currentTemperatureData = hourlyData; 
+            lastFetchedDate = startDateStr; 
+            
+            updateWeatherDisplayForSelectedPeriod(); 
+            checkFormValidity(); 
+        } catch (error) {
+            console.error("Fehler beim Abrufen der Wetterdaten:", error);
+            weatherStatusEl.textContent = '❌ Fehler beim Laden der Wetterdaten. Eintrag ohne Temperatur/Wetterzustand.';
+            currentTemperatureData = null; 
+            checkFormValidity(); 
+            updateWeatherDisplayForSelectedPeriod();
+        }
+    }
+
+    function getWeatherDataForPeriod(period, selectedDateStr) { 
+        if (!selectedDateStr || !currentTemperatureData || currentTemperatureData.length === 0 || !period) {
+             return { temperature: null, weatherCondition: null }; 
+        }
+        const targetHour = PERIOD_TIME_MAP[period];
+        if (!targetHour) return { temperature: null, weatherCondition: null };
+        const [year, month, day] = selectedDateStr.split('-').map(Number);
+        let targetTime = new Date(year, month - 1, day, targetHour, 0, 0); 
+        const targetTimestampMs = targetTime.getTime(); 
+        let closestEntry = null;
+        let minDiff = Infinity;
+        currentTemperatureData.forEach(entry => {
+            const diff = Math.abs(entry.timestamp - targetTimestampMs); 
+            if (diff < minDiff && diff < (12 * 60 * 60 * 1000)) { 
+                minDiff = diff;
+                closestEntry = entry;
+            }
+        });
+        if (closestEntry) {
+            const temp = parseFloat(closestEntry.temp.toFixed(1));
+            const condition = WMO_CODE_MAP[closestEntry.wmoCode] || 'Unbekannt'; 
+            return { temperature: temp, weatherCondition: condition };
+        } else {
+            console.warn(`Keine Wetterdaten für ${selectedDateStr} - ${period} in den geladenen Daten gefunden.`);
+            return { temperature: null, weatherCondition: null };
+        }
+    }
+
+    function checkFormValidity() {
+        const selectedDate = entryDateEl.value; 
+        saveButton.disabled = !(selectedDate && selectedPeriod && selectedMood && selectedPain !== null); 
+        saveButton.textContent = saveButton.disabled ? 'Bitte Datum, Zeitraum, Stimmung und Schmerz wählen' : 'Eintrag speichern';
+    }
+
+    function showHelpModal() { helpModal.classList.add('modal-show'); }
+    function closeHelpModal() { helpModal.classList.remove('modal-show'); }
+    
+    function exportChart(chartId) {
+        const chartCanvas = document.getElementById(chartId);
+        if (!chartCanvas) { alert("Das Diagramm existiert nicht."); return; }
+        const chartInstance = Chart.getChart(chartCanvas);
+        if (!chartInstance) { alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält."); return; }
+        const imageURL = chartCanvas.toDataURL('image/png');
+        const action = prompt("Möchten Sie das Diagramm speichern (S) oder drucken (D)?", "S");
+        const filenamePrefix = chartId.includes('moodChart') ? 'stimmungs_chart' : (chartId.includes('vitalChart') ? 'vital_chart' : 'schmerzregionen_chart');
+
+        if (action && action.toUpperCase() === 'S') {
+            const a = document.createElement('a');
+            a.href = imageURL;
+            a.download = `${filenamePrefix}_${activeUser}_${new Date().toISOString().split('T')[0]}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else if (action && action.toUpperCase() === 'D') {
+            const printWindow = window.open('');
+            printWindow.document.write('<img src="' + imageURL + '" style="max-width: 100%;">');
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+    }
+    
+    function toggleScrollButton() {
+        const button = document.getElementById('scrollToTopBtn');
+        if (window.scrollY > 200) { 
+            button.style.display = 'flex';
+        } else {
+            button.style.display = 'none';
+        }
+    }
+
+    function setupFormListeners() {
+        // Die Sterne-Logik
+// Die Sterne-Logik mit Abwahl-Funktion
+		document.querySelectorAll('.star-rating').forEach(star => {
+    		star.addEventListener('click', function() {
+		        const clickedValue = parseInt(this.getAttribute('data-value'));
+        
+        // Wenn man auf den bereits gewählten Stern klickt -> auf 0 zurücksetzen
+		        if (selectedSleepQuality === clickedValue) {
+		            selectedSleepQuality = 0;
+		        } else {
+		            selectedSleepQuality = clickedValue;
+		        }
+        
+        // Wert im (optionalen) versteckten Feld speichern
+		        const hiddenInput = document.getElementById('sleep-quality-value');
+		        if (hiddenInput) hiddenInput.value = selectedSleepQuality;
+
+        // Optisches Update: Sterne leuchten lassen oder löschen
+		        const allStars = document.querySelectorAll('.star-rating');
+		        allStars.forEach(s => {
+		            const val = parseInt(s.getAttribute('data-value'));
+		            if (val <= selectedSleepQuality && selectedSleepQuality !== 0) {
+		                s.classList.remove('opacity-30');
+                		s.classList.add('opacity-100');
+            		} else {
+                		s.classList.add('opacity-30');
+                		s.classList.remove('opacity-100');
+		            }
+		        });
+		    });
+		});
+
+
+        // ... ab hier geht dein Code weiter mit geburtsdatumEl.addEventListener ...
+
+
+    
+        geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
+        koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
+        gewichtEl.addEventListener('input', calculateAndDisplayBMI);
+        
+        entryDateEl.addEventListener('change', () => {
+            checkFormValidity();
+            fetchWeather(entryDateEl.value); 
+            updateWeatherDisplayForSelectedPeriod();
+        });
+
+        timePeriodsEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.period-button');
+            if (btn) {
+                document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
+                selectedPeriod = btn.dataset.period;
+                btn.classList.add('selected-period');
+                checkFormValidity();
+                
+                updateWeatherDisplayForSelectedPeriod(); 
+
+                if (entryDateEl.value) { 
+                    fetchWeather(entryDateEl.value); 
+                }
+            }
+        });
+
+        moodSelectionEl.addEventListener('click', (e) => {
+            const icon = e.target.closest('.mood-icon');
+            if (icon) {
+                document.querySelectorAll('.mood-icon').forEach(i => i.classList.remove('selected-mood'));
+                selectedMood = icon.dataset.mood;
+                icon.classList.add('selected-mood');
+                checkFormValidity();
+            }
+        });
+
+        painSelectionEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.pain-button');
+            if (btn) {
+                document.querySelectorAll('.pain-button').forEach(b => b.classList.remove('selected-pain'));
+                selectedPain = parseInt(btn.dataset.pain, 10); 
+                btn.classList.add('selected-pain');
+                checkFormValidity();
+            }
+        });
+        
+        saveButton.addEventListener('click', saveEntry);
+        resetButton.addEventListener('click', resetData); 
+        exportButton.addEventListener('click', exportData); 
+        document.getElementById('generate-report-btn').addEventListener('click', generateDoctorReport);
+        exportChartButton.addEventListener('click', () => exportChart('moodChart')); 
+        exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); 
+        exportVitalChartButton.addEventListener('click', () => exportChart('vitalChart'));
+        
+        jsonFileInput.addEventListener('change', () => { importButton.disabled = !jsonFileInput.files.length; });
+        importButton.addEventListener('click', importData);
+        
+        yearFilterEl.addEventListener('change', () => {
+            populateMonthFilter(yearFilterEl.value);
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+        });
+        
+        monthFilterEl.addEventListener('change', () => {
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+        });
+
+        helpButton.addEventListener('click', showHelpModal);
+        closeModalButton.addEventListener('click', closeHelpModal);
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) { closeHelpModal(); }
+        });
+        
+        document.getElementById('scrollToTopBtn').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        });
+        
+        window.addEventListener('scroll', toggleScrollButton);
+        toggleScrollButton(); 
+        
+        
+        manageUsersBtn.addEventListener('click', populateUserModal);
+        closeUserModalBtn.addEventListener('click', () => { userModal.classList.remove('modal-show'); });
+        userModal.addEventListener('click', (e) => {
+            if (e.target === userModal) { userModal.classList.remove('modal-show'); }
+        });
+        userListSelect.addEventListener('change', () => { switchUserBtn.disabled = userListSelect.value === activeUser; });
+        newUserNameInput.addEventListener('input', () => { 
+            const name = newUserNameInput.value.trim();
+            const users = getSavedUsers().map(u => u.toLowerCase());
+            addUserBtn.disabled = name === '' || users.includes(name.toLowerCase()); 
+        });
+        switchUserBtn.addEventListener('click', handleSwitchUser);
+        addUserBtn.addEventListener('click', handleAddUser);
+        
+        
+        userDeleteSelect.addEventListener('change', () => { deleteUserBtn.disabled = userDeleteSelect.value === ''; });
+        deleteUserBtn.addEventListener('click', handleDeleteUser);
+
+
+        checkFormValidity();
+        // Dark Mode Logik
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlElement = document.documentElement;
+
+        // Beim Laden prüfen, ob Dark Mode bereits aktiv war
+        if (localStorage.getItem('theme') === 'dark') {
+            htmlElement.classList.add('dark');
+            themeIcon.textContent = '☀️';
+        }
+
+        darkModeToggle.addEventListener('click', () => {
+            // Klasse "dark" am <html> Element umschalten
+            htmlElement.classList.toggle('dark');
+            
+            const isDark = htmlElement.classList.contains('dark');
+            themeIcon.textContent = isDark ? '☀️' : '🌙';
+            
+            // Auswahl dauerhaft speichern
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            
+            // Optional: Diagramme neu zeichnen, falls vorhanden (für Achsenfarben)
+            if (typeof allStoredEntries !== 'undefined' && allStoredEntries.length > 0) {
+                renderMoodChart(allStoredEntries);
+            }
+        });        
+    }
+    
+    function calculateAge(birthdateString) {
+        if (!birthdateString) return null;
+        const today = new Date();
+        const birthDate = new Date(birthdateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
+    function getSelectedPainRegions() {
+        const selectedRegions = [];
+        painRegionsFieldset.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedRegions.push(checkbox.value);
+        });
+        return selectedRegions;
+    }
+
+    function getNumericValue(element) {
+        const value = element.value.trim();
+        return value === '' ? null : parseFloat(value);
+    }
+
+	function saveEntry() {		
+    	const entryDate = entryDateEl.value; 
+    	if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
+        	statusMessageEl.textContent = "Bitte alle notwendigen Felder ausfüllen.";
+        	statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        	return;
+    	}
+
+    	saveButton.disabled = true;
+    	statusMessageEl.textContent = 'Speichere...';
+
+    	// WICHTIG: Körpergröße sicherstellen
+    	let koerpergroesse = getNumericValue(koerpergroesseEl);
+    	if (!koerpergroesse && userVitalInfo && userVitalInfo.koerpergroesse) {
+        	koerpergroesse = parseFloat(userVitalInfo.koerpergroesse);
+    	}
+    
+    	const geburtsdatum = geburtsdatumEl.value.trim() || null;
+    	const gewicht = getNumericValue(gewichtEl);
+    
+    	// Vitalinfo global aktualisieren
+    	saveUserVitalInfo(geburtsdatum, koerpergroesse); 
+
+    	// BMI mit den aktuellen Werten berechnen
+    	const bmi = calculateBMI(gewicht, koerpergroesse);
+    	const alter = calculateAge(geburtsdatum);
+
+    	const docId = `${entryDate}_${selectedPeriod}`; 
+    	const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
+    	const painRegions = getSelectedPainRegions(); 
+
+    	const newEntry = {
+        	id: docId, 
+        	date: entryDate, 
+        	timePeriod: selectedPeriod,
+        	mood: selectedMood,
+        	pain: selectedPain, 
+        	sleepQuality: selectedSleepQuality,
+        	schmerzRegionen: painRegions, 
+        	geburtsdatum: geburtsdatum, 
+        	koerpergroesse: koerpergroesse, // Hier war oft der Fehler
+        	alter: alter, 
+        	gewicht: gewicht,
+        	bmi: bmi, // Der berechnete Wert
+        	puls: getNumericValue(pulsEl), 
+        	blutzucker: getNumericValue(blutzuckerEl),
+        	blutdruckSys: getNumericValue(blutdruckSysEl),
+        	blutdruckDia: getNumericValue(blutdruckDiaEl),
+        	note: noteEl.value.trim(),
+        	temperature: weather.temperature, 
+        	weatherCondition: weather.weatherCondition, 
+        	timestamp: new Date().getTime() 
+    	};
+
+    	// ... Rest der Funktion (allStoredEntries.push etc.)
+    	const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
+    	if (existingIndex > -1) {
+        	allStoredEntries[existingIndex] = newEntry; 
+    	} else {
+        	allStoredEntries.push(newEntry); 
+    	}
+
+    	try {
+        	saveEntriesToLocalStorage(allStoredEntries);
+        	statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+        	statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+        
+        	setTimeout(() => {
+            	window.location.reload(); 
+        	}, 1500);
+    	} catch (error) {
+        	saveButton.disabled = false;
+    	}
+	}
+
+
+    function loadHistoryAndStartListening() {
+        renderSortedHistory(allStoredEntries, true);
+    }
+    
+    function populateYearFilter(entries) {
+        const uniqueYears = Array.from(new Set(entries.map(entry => entry.date.substring(0, 4))));
+        uniqueYears.sort().reverse();
+        const currentValue = yearFilterEl.value;
+        yearFilterEl.innerHTML = '<option value="all">Alle Jahre</option>';
+        uniqueYears.forEach(year => {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year; 
+            yearFilterEl.appendChild(option);
+        });
+        if (uniqueYears.includes(currentValue) || currentValue === 'all') {
+             yearFilterEl.value = currentValue;
+        }
+        populateMonthFilter(yearFilterEl.value);
+    }
+    
+    function populateMonthFilter(selectedYear) {
+        monthFilterEl.innerHTML = '<option value="all">Alle Monate</option>';
+        if (selectedYear === 'all') {
+            monthFilterEl.disabled = true;
+            return;
+        }
+        monthFilterEl.disabled = false;
+        const uniqueMonths = Array.from(new Set(
+            allStoredEntries
+                .filter(entry => entry.date.startsWith(selectedYear))
+                .map(entry => entry.date.substring(5, 7))
+        ));
+        uniqueMonths.sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+
+        uniqueMonths.forEach(monthStr => {
+            const monthIndex = parseInt(monthStr, 10) - 1; 
+            const monthName = MONTH_NAMES[monthIndex];
+            const option = document.createElement('option');
+            option.value = monthStr;
+            option.textContent = monthName + ' (' + monthStr + ')'; 
+            monthFilterEl.appendChild(option);
+        });
+        if (!uniqueMonths.includes(monthFilterEl.value)) {
+            monthFilterEl.value = 'all';
+        }
+    }
+
+    function filterHistoryByYearMonth(selectedYear, selectedMonth) {
+        let filteredEntries = allStoredEntries;
+        if (selectedYear !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => 
+                entry.date.startsWith(selectedYear)
+            );
+        }
+        if (selectedMonth !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => 
+                entry.date.substring(5, 7) === selectedMonth
+            );
+        }
+        renderStats(filteredEntries);
+        renderHistory(filteredEntries);
+	    if (typeof renderMoodChart !== 'undefined') { renderMoodChart(filteredEntries); }
+    	if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(filteredEntries); }
+    	if (typeof renderVitalChart !== 'undefined') { renderVitalChart(filteredEntries); }
+}        
+    
+    
+    function renderStats(entries) {
+        statsContainerEl.innerHTML = '';
+        if (entries.length === 0) {
+            statsContainerEl.classList.add('hidden');
+            return;
+        }
+        statsContainerEl.classList.remove('hidden');
+
+        let moodSum = 0;
+        let painSum = 0;
+        let tempSum = 0;
+        let tempCount = 0;
+        let pulsSum = 0;
+        let pulsCount = 0;
+        let gewichtSum = 0;
+        let gewichtCount = 0;
+        let blutzuckerSum = 0;
+        let blutzuckerCount = 0;
+        let bmiSum = 0;
+        let bmiCount = 0;
+
+
+        entries.forEach(entry => {
+            moodSum += window.MOOD_VALUES[entry.mood] || 3;
+            painSum += entry.pain !== undefined && entry.pain !== null ? entry.pain : 0;
+            if (entry.temperature !== undefined && entry.temperature !== null) {
+                tempSum += entry.temperature;
+                tempCount++;
+            }
+            if (entry.puls !== undefined && entry.puls !== null) {
+                pulsSum += entry.puls;
+                pulsCount++;
+            }
+            if (entry.gewicht !== undefined && entry.gewicht !== null) {
+                gewichtSum += entry.gewicht;
+                gewichtCount++;
+            }
+            if (entry.blutzucker !== undefined && entry.blutzucker !== null) {
+                blutzuckerSum += entry.blutzucker;
+                blutzuckerCount++;
+            }
+             if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A' && !isNaN(parseFloat(entry.bmi))) {
+                bmiSum += parseFloat(entry.bmi);
+                bmiCount++;
+            }
+        });
+
+        const avgMood = (moodSum / entries.length).toFixed(2);
+        const avgPain = (painSum / entries.length).toFixed(1);
+        const avgTemp = tempCount > 0 ? (tempSum / tempCount).toFixed(1) : 'N/A';
+        const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(0) : 'N/A';
+        const avgGewicht = gewichtCount > 0 ? (gewichtSum / gewichtCount).toFixed(1) : 'N/A';
+        const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(0) : 'N/A';
+        const avgBMI = bmiCount > 0 ? (bmiSum / bmiCount).toFixed(1) : 'N/A';
+
+
+        function createStatCard(title, value, unit, color) {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `
+                <p class="stat-card-title">${title}</p>
+                <p class="stat-card-value" style="color: ${color};">${value}${unit}</p>
+            `;
+            return card;
+        }
+        
+        const MOOD_COLOR = '#4f46e5';   
+        const PAIN_COLOR = '#9333ea';   
+        const TEMP_COLOR = '#ef4444';   
+        const PULS_COLOR = '#10b981';   
+        const GEWICHT_COLOR = '#db2777'; 
+        const BLUTZUCKER_COLOR = '#d97706'; 
+        const BMI_COLOR = '#4c51bf'; 
+
+
+        const moodCard = createStatCard( 'Ø Stimmung (0-4)', avgMood, '', MOOD_COLOR );
+        const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
+        const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', TEMP_COLOR );
+        const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
+        const gewichtCard = createStatCard( 'Ø Gewicht', avgGewicht, avgGewicht !== 'N/A' ? ' kg' : '', GEWICHT_COLOR );
+        const blutzuckerCard = createStatCard( 'Ø BZ', avgBlutzucker, avgBlutzucker !== 'N/A' ? ' mg/dL' : '', BLUTZUCKER_COLOR );
+        const bmiCard = createStatCard( 'Ø BMI', avgBMI, '', BMI_COLOR );
+
+        statsContainerEl.innerHTML = ''; 
+        statsContainerEl.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6'; 
+        statsContainerEl.appendChild(moodCard);
+        statsContainerEl.appendChild(painCard);
+        statsContainerEl.appendChild(tempCard);
+        statsContainerEl.appendChild(pulsCard);
+        statsContainerEl.appendChild(gewichtCard);
+        statsContainerEl.appendChild(blutzuckerCard);
+        statsContainerEl.appendChild(bmiCard); 
+    }
+
+    function renderSortedHistory(entries, updateChartFilter = true) {
+        const sortedEntries = entries.sort((a, b) => {
+            if (a.date < b.date) return 1;
+            if (a.date > b.date) return -1;
+            const order = ['Nacht', 'Morgen', 'Mittag', 'Abend']; 
+            return order.indexOf(a.timePeriod) - order.indexOf(b.timePeriod);
+        });
+
+        if (updateChartFilter) {
+            populateYearFilter(allStoredEntries);
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
+            return;
+		}
+		renderHistory(sortedEntries);
+	}	
+    
+    function renderHistory(entries) {
+        loadingHistoryEl.classList.add('hidden');
+        historyContainerEl.innerHTML = '';
+
+        if (entries.length === 0) {
+            noEntriesEl.classList.remove('hidden');
+            return;
+        }
+        noEntriesEl.classList.add('hidden');
+
+        const groupedByDate = entries.reduce((acc, entry) => {
+            const dateKey = entry.date;
+            if (!acc[dateKey]) { acc[dateKey] = []; }
+            entry.timestamp = entry.timestamp || new Date(entry.date).getTime(); 
+            acc[dateKey].push(entry);
+            return acc;
+        }, {});
+
+        const sortedDates = Object.keys(groupedByDate).sort().reverse();
+
+        sortedDates.forEach(date => {
+            const dateGroup = document.createElement('div');
+            dateGroup.className = 'mb-6 border border-gray-200 rounded-lg shadow-md overflow-hidden';
+
+            const dateTitle = document.createElement('h3');
+            dateTitle.className = 'bg-indigo-100 text-indigo-800 font-bold p-3 text-lg border-b border-indigo-200';
+            dateTitle.textContent = formatDate(date);
+            dateGroup.appendChild(dateTitle);
+
+            const entriesList = document.createElement('div');
+            groupedByDate[date].forEach(entry => { 
+                entriesList.innerHTML += createEntryHtml(entry);
+            });
+            dateGroup.appendChild(entriesList);
+            historyContainerEl.appendChild(dateGroup);
+        });
+        
+        document.querySelectorAll('.delete-entry-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const entryId = e.currentTarget.dataset.id;
+                deleteEntry(entryId);
+            });
+        });
+    }
+
+    function createEntryHtml(entry) {
+        const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
+        const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
+        
+        // --- NEU: Schlaf-Sterne für die Liste generieren ---
+        let sleepStars = '';
+        if (entry.sleepQuality && entry.sleepQuality > 0) {
+            sleepStars = `<span class="ml-2 text-xs" title="Schlafqualität">` + '😴'.repeat(entry.sleepQuality) + `</span>`;
+        }
+        // ----------------------------------------------------
+
+        const painDisplay = entry.pain !== undefined && entry.pain !== null 
+                             ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
+                             : '';
+        const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
+                             ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
+                             : '';
+        
+        let vitalData = [];
+        if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
+        if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
+        if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); 
+        if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
+        if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
+             vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
+        }
+        
+        const alterDisplay = entry.alter !== undefined && entry.alter !== null
+                            ? `<span class="text-xs font-medium text-gray-500 ml-3">Alter: ${entry.alter}</span>`
+                            : '';
+        
+        const vitalLine = vitalData.length > 0 
+                            ? `<p class="text-xs text-yellow-700 font-medium mt-1 flex items-center">${vitalData.join(' · ')}${alterDisplay}</p>` 
+                            : '';
+
+        let weatherLine = '';
+        if (entry.temperature !== undefined && entry.temperature !== null) { weatherLine += `${entry.temperature}°C`; }
+        if (entry.weatherCondition) {
+             if (weatherLine) weatherLine += ' · ';
+             weatherLine += entry.weatherCondition;
+        }
+
+        return `
+            <div class="flex py-3 px-4 bg-white border-b border-gray-100 last:border-b-0 history-entry-item">
+                <div class="flex items-start space-x-3 w-full">
+                    <span class="flex-shrink-0 text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
+                    <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
+                    <div class="text-sm flex-grow min-w-0">
+                        <p class="font-semibold text-gray-700 flex items-center flex-wrap">
+                            ${moodName}${sleepStars}${painDisplay}${painRegions}
+                        </p>
+                        ${vitalLine}
+                        ${entry.note || weatherLine ? 
+                            `<p class="text-gray-500 italic text-xs mt-1 break-words">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
+                        : ''}
+                    </div>
+                </div>
+                <button class="delete-entry-btn hover:text-red-600" data-id="${entry.id}" title="Eintrag löschen">
+                    &times;
+                </button>
+            </div>
+        `;
+    }
+
+
+    function deleteEntry(id) {
+        if (!confirm(`Sicher, dass Sie diesen Eintrag (ID: ${id}) löschen möchten?`)) { return; }
+        const initialLength = allStoredEntries.length;
+        allStoredEntries = allStoredEntries.filter(entry => entry.id !== id);
+        if (allStoredEntries.length < initialLength) {
+            saveEntriesToLocalStorage(allStoredEntries);
+            renderSortedHistory(allStoredEntries, true);
+        } else {
+            alert("Fehler: Eintrag nicht gefunden.");
+        }
+    }
+
+    function resetData() {
+        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) { return; }
+        
+        if (confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?")) {
+            try {
+                localStorage.removeItem(getUserVitalInfoKey()); 
+                userVitalInfo = {};
+            } catch (e) {
+                 console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
+            }
+        }
+
+        resetButton.disabled = true;
+        resetStatusEl.textContent = 'Lösche alle Daten...';
+        resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+        try {
+            localStorage.removeItem(getLocalStorageKey()); 
+            allStoredEntries = []; 
+            resetStatusEl.textContent = `Erfolgreich alle Einträge für Benutzer "${activeUser}" gelöscht!`;
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+            yearFilterEl.value = 'all';
+            monthFilterEl.value = 'all';
+            renderSortedHistory([], true); 
+            setupApp(); 
+        } catch (error) {
+            console.error("Fehler beim Löschen der Einträge:", error);
+            resetStatusEl.textContent = 'Fehler beim Löschen.';
+            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        } finally {
+            resetButton.disabled = false;
+            setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
+        }
+    }
+    
+    function exportData() {
+        const allEntries = allStoredEntries;
+        const exportObject = {
+            activeUser: activeUser, 
+            entries: allEntries,
+            userVitalInfo: userVitalInfo,
+            
+            userList: getSavedUsers() 
+        };
+
+        if (allEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
+            alert("Es sind keine Einträge oder Benutzerdaten zum Exportieren vorhanden!"); 
+            return; 
+        }
+
+        const dataStr = JSON.stringify(exportObject, null, 2); 
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const now = new Date();
+        const filename = `stimmungs_backup_${activeUser}_${now.toISOString().split('T')[0]}.json`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importData() {
+        const file = jsonFileInput.files[0];
+        if (!file) { alert("Bitte wählen Sie eine JSON-Datei aus."); return; }
+        importButton.disabled = true;
+        importStatusEl.textContent = 'Importiere...';
+        importStatusEl.className = 'mt-3 text-center text-sm font-medium text-blue-600 h-4';
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                let importedEntries = [];
+                let importedUserVitalInfo = {};
+                let importedUserList = getSavedUsers();
+                let targetUser = activeUser;
+
+                if (importedData.entries && Array.isArray(importedData.entries)) {
+
+                    importedEntries = importedData.entries;
+                    importedUserVitalInfo = importedData.userVitalInfo || {};
+                    if (importedData.activeUser) { targetUser = importedData.activeUser; }
+                    if (importedData.userList && Array.isArray(importedData.userList)) {
+                        importedUserList = [...new Set([...importedUserList, ...importedData.userList])];
+                        saveUsers(importedUserList);
+                    }
+                } else if (Array.isArray(importedData)) { 
+
+                    importedEntries = importedData;
+                } else {
+                     throw new Error("Die Datei ist kein gültiges Backup-Format. Erwartet wurde ein JSON-Array ([...]) oder ein Objekt mit dem Schlüssel 'entries'."); 
+                }
+
+                if (targetUser !== activeUser) {
+                    if (!confirm(`Die Backup-Datei scheint für den Benutzer "${targetUser}" zu sein. Möchten Sie zum Benutzer wechseln, um die Daten zu importieren? Andernfalls werden sie in den aktiven Benutzer ("${activeUser}") importiert.`)) {
+                         targetUser = activeUser;
+                    } else {
+                        switchToUser(targetUser); 
+                        return;
+                    }
+                }
+
+
+                let entriesAdded = 0;
+                let entriesOverwritten = 0;
+
+                
+                importedEntries.forEach(entry => {
+                    const docId = entry.date + '_' + entry.timePeriod;
+                    entry.id = docId; 
+                    entry.schmerzRegionen = Array.isArray(entry.schmerzRegionen) ? entry.schmerzRegionen : [];
+                    
+                    if (entry.geburtsdatum === undefined && importedUserVitalInfo.geburtsdatum) {
+                        entry.geburtsdatum = importedUserVitalInfo.geburtsdatum;
+                        entry.alter = calculateAge(entry.geburtsdatum);
+                    }
+                    if (entry.koerpergroesse === undefined && importedUserVitalInfo.koerpergroesse) {
+                        entry.koerpergroesse = importedUserVitalInfo.koerpergroesse;
+                    }
+                    if (entry.bmi === undefined) {
+                        entry.bmi = calculateBMI(entry.gewicht, entry.koerpergroesse);
+                    }
+
+                    const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
+                    if (existingIndex > -1) {
+                        allStoredEntries[existingIndex] = entry;
+                        entriesOverwritten++;
+                    } else {
+                        allStoredEntries.push(entry);
+                        entriesAdded++;
+                    }
+                });
+                
+                
+                if (importedUserVitalInfo.geburtsdatum || importedUserVitalInfo.koerpergroesse) {
+                    saveUserVitalInfo(
+                        importedUserVitalInfo.geburtsdatum || userVitalInfo.geburtsdatum || null,
+                        importedUserVitalInfo.koerpergroesse || userVitalInfo.koerpergroesse || null
+                    );
+                }
+
+
+                saveEntriesToLocalStorage(allStoredEntries);
+                yearFilterEl.value = 'all';
+                monthFilterEl.value = 'all';
+                
+                setupApp(); 
+                
+                importStatusEl.textContent = `Import erfolgreich für Benutzer "${activeUser}"! ${entriesAdded} neu, ${entriesOverwritten} überschrieben.`;
+                importStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+            } catch (error) {
+                console.error("Fehler beim Importieren oder Parsen:", error);
+                importStatusEl.textContent = `Importfehler: ${error.message}`;
+                importStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            } finally {
+                importButton.disabled = false;
+                jsonFileInput.value = ''; 
+            }
+        };
+
+        reader.onerror = function() {
+            importStatusEl.textContent = 'Fehler beim Lesen der Datei.';
+            importStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+            importButton.disabled = false;
+        };
+
+        reader.readAsText(file);
+    }
+    
+	function generateDoctorReport() {
+		const entries = allStoredEntries || [];
+		if (entries.length === 0) {
+			alert("Keine Daten für einen Bericht vorhanden.");
+			return;
+		}
+	
+		// 1. Vorbereitung: Scroll-Container deaktivieren und Charts strecken
+		const moodCont = document.getElementById('chart-container');
+		const vitalCont = document.getElementById('vital-chart-container');
+		
+		// Alte Breiten speichern, um sie später wiederherzustellen
+		const oldMoodStyle = moodCont.style.overflowX;
+		const oldVitalStyle = vitalCont.style.overflowX;
+	
+		// Für den Druck: Überlauf erlauben
+		moodCont.style.overflowX = 'visible';
+		vitalCont.style.overflowX = 'visible';
+		
+		// Charts anweisen, sich voll zu entfalten
+		if (moodChartInstance) {
+			moodChartEl.style.width = '100%';
+			moodChartInstance.resize();
+		}
+		if (vitalChartInstance) {
+			vitalChartEl.style.width = '100%';
+			vitalChartInstance.resize();
+		}
+	
+		// 2. Statistiken berechnen
+		let moodSum = 0;
+		let painSum = 0;
+		entries.forEach(e => {
+			moodSum += window.MOOD_VALUES[e.mood] || 3;
+			painSum += e.pain || 0;
+		});
+	
+		// 3. Header einfügen
+		const reportHeader = document.createElement('div');
+		reportHeader.id = "temp-report-header";
+		reportHeader.className = "hidden print:block mb-8 border-b-2 border-indigo-700 pb-4";
+		reportHeader.innerHTML = `
+			<div class="flex justify-between items-end">
+				<div>
+					<h1 class="text-3xl font-bold text-indigo-700">Medizinischer Verlaufsbericht</h1>
+					<p class="text-gray-600">Patient: ${activeUser}</p>
+				</div>
+				<div class="text-right text-sm">
+					<p>Datum: ${new Date().toLocaleDateString('de-DE')}</p>
+					<p>Zeitraum: ${yearFilterEl.value !== 'all' ? yearFilterEl.value : 'Gesamt'}</p>
+				</div>
+			</div>
+		`;
+		
+		const appElement = document.getElementById('app');
+		appElement.insertBefore(reportHeader, appElement.firstChild);
+	
+		// 4. Druckdialog öffnen
+		window.print();
+	
+		// 5. Aufräumen: Alles wieder in den "App-Modus" (Scrollbar) zurückversetzen
+		reportHeader.remove();
+		moodCont.style.overflowX = oldMoodStyle;
+		vitalCont.style.overflowX = oldVitalStyle;
+		
+		// Charts wieder auf die scrollbare Breite bringen (nutzt die Filter-Logik)
+		const currentEntries = allStoredEntries.filter(entry => {
+			const yearMatch = yearFilterEl.value === 'all' || entry.date.startsWith(yearFilterEl.value);
+			const monthMatch = monthFilterEl.value === 'all' || entry.date.substring(5, 7) === monthFilterEl.value;
+			return yearMatch && monthMatch;
+		});
+	
+		renderMoodChart(currentEntries); 
+		renderVitalChart(currentEntries);
+	}
+    
+
+    function formatDate(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    window.formatDateShort = function(dateString) {
+        try {
+            const [year, month, day] = dateString.split('-').map(Number);
+            const date = new Date(Date.UTC(year, month - 1, day)); 
+            return date.toLocaleDateString('de-DE', { 
+                weekday: 'short', day: 'numeric', month: 'short' 
+            }).replace(/\./g, '').trim(); 
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    let moodChartInstance = null;
+    const chartStatusEl = document.getElementById('chart-status');
+    const moodChartEl = document.getElementById('moodChart'); 
+    const chartContainerEl = document.getElementById('chart-container'); 
+    let painRegionChartInstance = null;
+    const painRegionChartEl = document.getElementById('painRegionChart');
+    const painChartStatusEl = document.getElementById('pain-chart-status');
+    let vitalChartInstance = null;
+    const vitalChartEl = document.getElementById('vitalChart');
+    const vitalChartStatusEl = document.getElementById('vital-chart-status');
+    const vitalChartContainerEl = document.getElementById('vital-chart-container');
+
+    const TEMP_MIN = -5;  
+    const TEMP_MAX = 25;  
+    const TEMP_RANGE = TEMP_MAX - TEMP_MIN; 
+
+    function normalizeTemperature(temp) {
+        if (temp === null || temp === undefined) return null;
+        if (TEMP_RANGE === 0) return 5; 
+        let clampedTemp = Math.max(TEMP_MIN, Math.min(TEMP_MAX, temp)); 
+        return ((clampedTemp - TEMP_MIN) / TEMP_RANGE) * 10;
+    }
+
+    function denormalizeTemperature(normalizedValue) {
+        if (normalizedValue === null || normalizedValue === undefined) return null;
+        return (normalizedValue / 10 * TEMP_RANGE) + TEMP_MIN;
+    }
+
+	function renderMoodChart(entries) {
+		if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
+		if (moodChartInstance) { moodChartInstance.destroy(); }
+		
+		const dailyData = {};
+		entries.forEach(entry => {
+   		 const date = entry.date;
+    		if (!dailyData[date]) {
+        		dailyData[date] = { 
+            		moodSum: 0, moodCount: 0, 
+            		painSum: 0, painCount: 0, 
+            		tempSum: 0, tempCount: 0,
+            		sleepSum: 0, sleepCount: 0 
+        		};
+		    }
+		    const m = entry.mood || entry.stimmung;
+		    const p = (entry.pain !== undefined && entry.pain !== null) ? entry.pain : entry.schmerz;
+		    const t = entry.temp || entry.temperatur || entry.temperature;
+		    const s = entry.sleepQuality; 
+
+		    if (m !== undefined && m !== null) {
+		        const val = typeof m === 'string' ? (window.MOOD_VALUES[m] || 0) : m;
+        		dailyData[date].moodSum += Number(val); 
+        		dailyData[date].moodCount++; 
+    		}
+
+    // KORREKTUR HIER: Wir prüfen explizit auf den Typ 'number'
+    // Damit wird auch die 0 als gültiger Wert erkannt!
+    		if (typeof p === 'number') { 
+        		dailyData[date].painSum += p; 
+        		dailyData[date].painCount++; 
+    		}
+
+    		if (t !== undefined && t !== null) { dailyData[date].tempSum += Number(t); dailyData[date].tempCount++; }
+    		if (s !== undefined && s !== null && s > 0) {
+        		dailyData[date].sleepSum += Number(s);
+        		dailyData[date].sleepCount++;
+		    }
+		});
+
+		const sortedDates = Object.keys(dailyData).sort();
+		const chartData = sortedDates.map(date => {
+			const data = dailyData[date];
+			const avgTemp = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
+			return {
+				date: date,
+				averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
+				averagePain: data.painCount > 0 ? data.painSum / data.painCount : null,
+				averageSleep: data.sleepCount > 0 ? data.sleepSum / data.sleepCount : null,
+				averageTempNormalized: (typeof normalizeTemperature === 'function' && avgTemp !== null) ? normalizeTemperature(avgTemp) : null,
+			};
+		});
+
+		const minWidthPerDay = 50; 
+		const calculatedWidth = Math.max(chartContainerEl.offsetWidth, chartData.length * minWidthPerDay);
+		
+		moodChartEl.style.width = calculatedWidth + "px";
+		moodChartEl.width = calculatedWidth; 
+		moodChartEl.height = 350; 
+
+		const ctx = moodChartEl.getContext('2d');
+		moodChartInstance = new Chart(ctx, {
+			type: 'line', 
+			data: {
+				labels: chartData.map(d => window.formatDateShort(d.date)),
+				datasets: [
+					{
+						label: 'Stimmung',
+						data: chartData.map(d => d.averageMood),
+						borderColor: '#2563eb', 
+						backgroundColor: 'rgba(37, 99, 235, 0.2)',
+						yAxisID: 'mood',
+						tension: 0.3,
+						fill: true,
+						borderWidth: 3,
+						pointRadius: 5,
+						spanGaps: true
+					},
+					{
+						label: 'Schlafqualität',
+						data: chartData.map(d => d.averageSleep),
+						type: 'scatter', 
+						backgroundColor: '#facc15', 
+						borderColor: '#eab308',
+						yAxisID: 'mood', 
+						pointStyle: 'star', 
+						pointRadius: 10,    
+						pointHoverRadius: 12
+					},
+					{
+						label: 'Schmerz',
+						data: chartData.map(d => d.averagePain),
+						borderColor: '#9333ea',
+						yAxisID: 'pain',
+						tension: 0.3,
+						pointRadius: 5,
+						spanGaps: true,
+						borderWidth: 3,
+					},
+					{
+						label: 'Temp',
+						data: chartData.map(d => d.averageTempNormalized),
+						borderColor: '#ef4444',
+						borderDash: [5, 5],
+						yAxisID: 'pain',
+						pointRadius: 5,
+						spanGaps: true,
+						borderWidth: 3
+					}
+				]
+			},
+			options: {
+				responsive: false, 
+				maintainAspectRatio: false,
+				plugins: {
+					tooltip: {
+						callbacks: {
+							label: function(context) {
+								let label = context.dataset.label || '';
+								let val = context.parsed.y;
+								if (val === null || val === undefined) return label + ': keine Daten';
+								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/5`;
+								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(2)}/5`;
+								if (label === 'Schmerz') return `🏥 Schmerz Ø: ${val.toFixed(1)}/10`;
+								if (label === 'Temp') return `🌡️ Temp Ø: ${val.toFixed(1)}°C `;
+								return `${label}: ${val.toFixed(2)}`;
+							}
+						}
+					},
+					legend: { display: true, position: 'bottom' }
+				},
+				scales: {
+					mood: {
+					    type: 'linear', 
+					    position: 'left',
+					    min: 0,           // Die Linie beginnt ganz unten
+					    max: 4,           // Da wir bei 0 starten, ist 4 nun der Höchstwert
+					    title: { 
+					        display: true, 
+					        text: 'Stimmung (0-4)' 
+					    },
+					    ticks: { 
+					        stepSize: 1,
+					        callback: function(value) {
+            // Dies benennt die Zahlen auf der Achse für bessere Lesbarkeit um
+					            const labels = {
+					                0: '0 (Sehr schlecht)',
+					                1: '1',
+					                2: '2',
+					                3: '3',
+					                4: '4 (Sehr gut)'
+					            };
+					            return labels[value] || value;
+					        }
+					    }
+					},
+					pain: {
+				        type: 'linear',
+				        position: 'right',
+				        min: 0,           // Schmerz beginnt ebenfalls bei 0
+				        max: 10,
+				        title: { display: true, text: 'Schmerz | Temp' },
+				        ticks: {
+				            stepSize: 2,
+				            callback: function(value) {
+                // Deine Formel zur Temperaturanzeige
+				                let realTemp = (value / 10 * 30) - 5;
+				                return value + '  │  ' + realTemp.toFixed(0) + '°C';
+				            }
+				        }
+				    }
+				}
+			}
+		});
+	}
+
+
+
+	function renderVitalChart(entries) {
+    	if (typeof Chart === 'undefined') return;
+    	if (vitalChartInstance) { vitalChartInstance.destroy(); }
+
+    	const dailyData = entries.reduce((acc, entry) => {
+        	const dateKey = entry.date;
+        	if (!acc[dateKey]) { acc[dateKey] = { pulsSum: 0, pulsCount: 0, gewichtSum: 0, gewichtCount: 0, bmiSum: 0, bmiCount: 0 }; }
+        	if (typeof entry.puls === 'number') {
+        		acc[dateKey].pulsSum += entry.puls;
+        		acc[dateKey].pulsCount++;
+        	}
+        	if (typeof entry.gewicht === 'number') {
+        		acc[dateKey].gewichtSum += entry.gewicht;
+				 acc[dateKey].gewichtCount++; 
+			}
+        	if (entry.bmi && entry.bmi !== 'N/A') { acc[dateKey].bmiSum += parseFloat(entry.bmi); acc[dateKey].bmiCount++; }
+        	return acc;
+    	}, {});
+
+    	const sortedDates = Object.keys(dailyData).sort();
+    	const chartData = sortedDates.map(date => {
+        	const d = dailyData[date];
+        	return {
+            	date: date,
+            	puls: d.pulsCount > 0 ? d.pulsSum / d.pulsCount : null,
+            	gewicht: d.gewichtCount > 0 ? d.gewichtSum / d.gewichtCount : null,
+            	bmi: d.bmiCount > 0 ? d.bmiSum / d.bmiCount : null
+        	};
+    	});
+
+    	if (chartData.length === 0) {
+        	vitalChartStatusEl.classList.remove('hidden');
+        	return;
+    	}
+    	vitalChartStatusEl.classList.add('hidden');
+
+    	const finalWidth = Math.max(vitalChartContainerEl.offsetWidth, chartData.length * 50);
+    	vitalChartEl.width = finalWidth;
+    	vitalChartEl.height = 300;
+    	vitalChartEl.style.width = finalWidth + "px";
+
+    	const ctx = vitalChartEl.getContext('2d');
+    	vitalChartInstance = new Chart(ctx, {
+        	type: 'line',
+        	data: {
+            	labels: chartData.map(d => window.formatDateShort(d.date)),
+            	datasets: [
+                	{ label: 'Puls Ø', data: chartData.map(d => d.puls), borderColor: '#10b981', yAxisID: 'y', pointRadius: 6, },
+                	{ label: 'Gewicht Ø', data: chartData.map(d => d.gewicht), borderColor: '#db2777', yAxisID: 'y1', pointRadius: 6, },
+                	{ label: 'BMI Ø', data: chartData.map(d => d.bmi), borderColor: '#4c51bf', borderDash: [5, 5], yAxisID: 'y2', pointRadius: 6, }
+            	]
+        	},
+        	options: {
+            	responsive: false,
+            	maintainAspectRatio: false,
+            	scales: {
+                	y: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls' } },
+                	y1: { type: 'linear', position: 'right', min: 40, max: 120, grid: { drawOnChartArea: false }, title: { display: true, text: 'kg' } },
+                	y2: { type: 'linear', position: 'right', min: 15, max: 45, grid: { drawOnChartArea: false }, title: { display: true, text: 'BMI' } }
+            	},
+            	plugins: { legend: { display: true, position: 'bottom' } }
+        	}
+    	});
+	}
+
+	function renderPainRegionChart(entries) {
+		if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
+		if (painRegionChartInstance) { painRegionChartInstance.destroy(); }
+		
+		const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
+		let totalCount = 0;
+	
+		entries.forEach(entry => {
+			if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
+				entry.schmerzRegionen.forEach(region => {
+					if (regionCounts.hasOwnProperty(region)) {
+						regionCounts[region]++;
+						totalCount++;
+					}
+				});
+			}
+		});
+		
+		if (totalCount === 0) {
+			painChartStatusEl.classList.remove('hidden');
+			exportPainChartButton.disabled = true;
+			return;
+		}
+		painChartStatusEl.classList.add('hidden');
+		exportPainChartButton.disabled = false;
+	
+		const dataValues = Object.keys(regionCounts).map(key => {
+			return totalCount > 0 ? ((regionCounts[key] / totalCount) * 100).toFixed(1) : 0;
+		});
+	
+		const ctx = painRegionChartEl.getContext('2d');
+		painRegionChartInstance = new Chart(ctx, {
+			type: 'pie',
+			data: {
+				labels: Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]),
+				datasets: [{
+					data: dataValues,
+					backgroundColor: ['rgba(147, 51, 234, 0.8)', 'rgba(192, 132, 252, 0.8)', 'rgba(233, 213, 255, 0.8)'],
+					borderWidth: 1
+				}]
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: { position: 'right' },
+					title: { 
+						display: true, 
+						text: `Verteilung in Prozent (Gesamt: ${totalCount} Nennungen)` 
+					},
+					tooltip: {
+						callbacks: {
+							label: function(context) {
+								return `${context.label}: ${context.parsed}%`;
+							}
+						}
+					}
+				}
+			}
+		});
+	}
+
+
+
+    // Ganz am Ende der Datei:
+    setupFormListeners(); 
+    setupApp(); 
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('SW registriert'))
+          .catch(err => console.error('SW Fehler', err));
+      });
+    }
