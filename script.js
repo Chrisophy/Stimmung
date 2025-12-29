@@ -1520,6 +1520,7 @@
         		date: date,
         		averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
         // Hier ziehen wir 1 ab, damit 1 Stern auf der 0-Linie landet und 5 Sterne auf der 4-Linie
+        		averagePain: data.painCount > 0 ? data.painSum / data.painCount : null, 
         		averageSleep: data.sleepCount > 0 ? (data.sleepSum / data.sleepCount) - 1 : null,
         		averageTempNormalized: (typeof normalizeTemperature === 'function' && avgTemp !== null) ? normalizeTemperature(avgTemp) : null,
     		};
