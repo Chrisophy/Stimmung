@@ -1097,12 +1097,12 @@
         const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
         const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
         
-        // --- NEU: Schlaf-Sterne für die Liste generieren ---
-        let sleepStars = '';
+        // --- Schlaf-Emojis generieren ---
+        let sleepRow = '';
         if (entry.sleepQuality && entry.sleepQuality > 0) {
-            sleepStars = `<span class="ml-2 text-xs" title="Schlafqualität">` + '😴'.repeat(entry.sleepQuality) + `</span>`;
+            // Wir erstellen eine eigene Zeile für die Schlaf-Emojis
+            sleepRow = `<div class="text-xs mb-1" title="Schlafqualität">${'😴'.repeat(entry.sleepQuality)}</div>`;
         }
-        // ----------------------------------------------------
 
         const painDisplay = entry.pain !== undefined && entry.pain !== null 
                              ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
@@ -1138,11 +1138,12 @@
         return `
             <div class="flex py-3 px-4 bg-white border-b border-gray-100 last:border-b-0 history-entry-item">
                 <div class="flex items-start space-x-3 w-full">
-                    <span class="flex-shrink-0 text-xl font-bold text-indigo-500">${entry.timePeriod}</span>
+                    <span class="flex-shrink-0 text-xl font-bold text-indigo-500 w-16">${entry.timePeriod}</span>
                     <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
                     <div class="text-sm flex-grow min-w-0">
+                        ${sleepRow}
                         <p class="font-semibold text-gray-700 flex items-center flex-wrap">
-                            ${moodName}${sleepStars}${painDisplay}${painRegions}
+                            ${moodName}${painDisplay}${painRegions}
                         </p>
                         ${vitalLine}
                         ${entry.note || weatherLine ? 
@@ -1150,12 +1151,13 @@
                         : ''}
                     </div>
                 </div>
-                <button class="delete-entry-btn hover:text-red-600" data-id="${entry.id}" title="Eintrag löschen">
+                <button class="delete-entry-btn hover:text-red-600 ml-2" data-id="${entry.id}" title="Eintrag löschen">
                     &times;
                 </button>
             </div>
         `;
     }
+
 
 
     function deleteEntry(id) {
