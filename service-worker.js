@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stimmungstagebuch-cache-v5';
+const CACHE_NAME = 'stimmungstagebuch-cache-v6';
 const urlsToCache = [
   './',
   'index.html',
