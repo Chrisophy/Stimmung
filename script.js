@@ -1013,7 +1013,7 @@
         const BMI_COLOR = '#4c51bf'; 
 
 
-        const moodCard = createStatCard( 'Ø Stimmung (0-4)', avgMood, '', MOOD_COLOR );
+        const moodCard = createStatCard( 'Ø Stimmung (0-5)', avgMood, '', MOOD_COLOR );
         const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
         const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', TEMP_COLOR );
         const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
@@ -1594,8 +1594,8 @@
 								let label = context.dataset.label || '';
 								let val = context.parsed.y;
 								if (val === null || val === undefined) return label + ': keine Daten';
-								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/4`;
-								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(1)}/4`;
+								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/5`;
+								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(1)}/5`;
 								if (label === 'Schmerz') return `🏥 Schmerz Ø: ${val.toFixed(1)}/10`;
 								if (label === 'Temp') return `🌡️ Temp Ø: ${val.toFixed(1)}°C `;
 								return `${label}: ${val.toFixed(2)}`;
@@ -1609,10 +1609,10 @@
 					    type: 'linear', 
 					    position: 'left',
 					    min: 0,           // Die Linie beginnt ganz unten
-					    max: 4,           // Da wir bei 0 starten, ist 4 nun der Höchstwert
+					    max: 5,           // Da wir bei 0 starten, ist 4 nun der Höchstwert
 					    title: { 
 					        display: true, 
-					        text: 'Stimmung (0-4)' 
+					        text: 'Stimmung (0-5)' 
 					    },
 					    ticks: { 
 					        stepSize: 1,
@@ -1623,7 +1623,8 @@
 					                1: '1',
 					                2: '2',
 					                3: '3',
-					                4: '4 (Sehr gut)'
+					                4: '4',					
+					                5: '5 (Sehr gut)'
 					            };
 					            return labels[value] || value;
 					        }
