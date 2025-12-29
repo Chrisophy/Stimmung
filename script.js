@@ -1514,15 +1514,15 @@
 
 		const sortedDates = Object.keys(dailyData).sort();
 		const chartData = sortedDates.map(date => {
-			const data = dailyData[date];
-			const avgTemp = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
-			return {
-				date: date,
-				averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
-				averagePain: data.painCount > 0 ? data.painSum / data.painCount : null,
-				averageSleep: data.sleepCount > 0 ? data.sleepSum / data.sleepCount : null,
-				averageTempNormalized: (typeof normalizeTemperature === 'function' && avgTemp !== null) ? normalizeTemperature(avgTemp) : null,
-			};
+    		const data = dailyData[date];
+    		const avgTemp = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
+    		return {
+        		date: date,
+        		averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
+        // Hier ziehen wir 1 ab, damit 1 Stern auf der 0-Linie landet und 5 Sterne auf der 4-Linie
+        		averageSleep: data.sleepCount > 0 ? (data.sleepSum / data.sleepCount) - 1 : null,
+        		averageTempNormalized: (typeof normalizeTemperature === 'function' && avgTemp !== null) ? normalizeTemperature(avgTemp) : null,
+    		};
 		});
 
 		const minWidthPerDay = 50; 
@@ -1593,8 +1593,8 @@
 								let label = context.dataset.label || '';
 								let val = context.parsed.y;
 								if (val === null || val === undefined) return label + ': keine Daten';
-								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/5`;
-								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(2)}/5`;
+								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/4`;
+								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(1)}/4`;
 								if (label === 'Schmerz') return `🏥 Schmerz Ø: ${val.toFixed(1)}/10`;
 								if (label === 'Temp') return `🌡️ Temp Ø: ${val.toFixed(1)}°C `;
 								return `${label}: ${val.toFixed(2)}`;
