@@ -1,4 +1,36 @@
 
+/* Positionierung der Schmerzregionen-Labels */
+
+/* Gemeinsame Basis für alle Labels auf der Silhouette */
+.body-label {
+    position: absolute;
+    transform: translateX(-50%);
+    font-weight: 600;
+    font-size: 0.875rem;
+    pointer-events: none; /* Verhindert, dass der Text Klicks auf Checkboxen blockiert */
+}
+
+.label-oben { 
+    top: 15%; 
+    left: 50%; 
+}
+
+/* Hier ist die Korrektur: Von ca. 45% auf 58% erhöht */
+.label-mitte { 
+    top: 58%; 
+    left: 50%; 
+}
+
+.label-unten { 
+    top: 85%; 
+    left: 50%; 
+}
+
+/* Dark Mode Anpassung für die Labels, damit sie lesbar bleiben */
+.dark .body-label {
+    color: #f1f5f9;
+    text-shadow: 0px 0px 4px rgba(0,0,0,0.8);
+}
 
 @media print {
     @page {

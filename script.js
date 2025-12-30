@@ -1075,8 +1075,8 @@
     	                     : '';
                          
     	const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
-    	                     ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
-    	                     : '';
+                     ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full inline-block mr-8">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
+                     : '';
     
     // Vitaldaten sammeln
     	let vitalData = [];
