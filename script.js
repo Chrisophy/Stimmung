@@ -3,21 +3,69 @@
     const ACTIVE_USER_KEY = 'active_stimmungs_user';
     const USER_LIST_KEY = 'stimmungs_user_list';
     
-    if (typeof Chart !== 'undefined') {
-    	Chart.defaults.font.size = 11;
-    	Chart.defaults.maintainAspectRatio = false;
-    	Chart.defaults.responsive = false; // Wir steuern die Breite manuell über die Container-Logik
-}
-
-    
     let activeUser = 'Standard'; 
     
     let selectedPeriod = null;
     let selectedMood = null;
     let selectedPain = null; 
-    let selectedSleepQuality = 0;
     let allStoredEntries = []; 
     let userVitalInfo = {}; 
+
+	const darkModeToggle = document.getElementById('dark-mode-toggle');
+	const darkModeIcon = document.getElementById('dark-mode-icon');
+	const htmlElement = document.documentElement;
+
+	// --- Bei den anderen DOM-Elementen oben einfügen ---
+	const sleepStarsContainer = document.getElementById('sleep-stars');
+	const sleepStars = document.querySelectorAll('#sleep-stars .star');
+	const sleepInput = document.getElementById('sleep-quality');
+	const sleepRatingText = document.getElementById('sleep-rating-text');
+	const resetSleepBtn = document.getElementById('reset-sleep');
+	
+
+	sleepStars.forEach(star => {
+   	 star.addEventListener('click', function() {
+    	    const val = parseInt(this.getAttribute('data-value'));
+      	  sleepInput.value = val;
+      	  sleepRatingText.innerText = val + (val === 1 ? " Stern" : " Sterne");
+
+        	sleepStars.forEach(s => {
+        	    const sVal = parseInt(s.getAttribute('data-value'));
+        	    s.classList.toggle('text-yellow-400', sVal <= val);
+           	 s.classList.toggle('text-gray-300', sVal > val);
+      	  });
+  	  });
+	});
+
+	resetSleepBtn.addEventListener('click', () => {
+   	 sleepInput.value = "0";
+  	  sleepRatingText.innerText = "0 Sterne";
+ 	   sleepStars.forEach(s => {
+        	s.classList.remove('text-yellow-400');
+  	      s.classList.add('text-gray-300');
+   	 });
+	});
+
+
+	if (localStorage.getItem('theme') === 'dark' || 
+    	(!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+   	 htmlElement.classList.add('dark');
+   	 if (darkModeIcon) darkModeIcon.textContent = '☀️';
+	}
+
+	darkModeToggle.addEventListener('click', () => {
+   	 if (htmlElement.classList.contains('dark')) {
+       	 htmlElement.classList.remove('dark');
+      	  localStorage.setItem('theme', 'light');
+      	  darkModeIcon.textContent = '🌙';
+  	  } else {
+      	  htmlElement.classList.add('dark');
+    	    localStorage.setItem('theme', 'dark');
+      	  darkModeIcon.textContent = '☀️';
+  	  }
+   	 if (typeof updateCharts === "function") updateCharts(); 
+	});
+
 
     const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
     let currentTemperatureData = null; 
@@ -80,7 +128,7 @@
     entryDateEl.value = new Date().toISOString().split('T')[0]; 
     const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
     window.MOOD_NAMES = { 'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht' };
-    window.MOOD_VALUES = { 'sehr_schlecht': 0, 'schlecht': 1, 'neutral': 2, 'gut': 3, 'sehr_gut': 4 };
+    window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
     const MONTH_NAMES = [ "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" ];
 
     function getLocalStorageKey() {
@@ -295,38 +343,31 @@
 
 
     function calculateBMI(weightKg, heightCm) {
-    	if (weightKg && heightCm && weightKg > 0 && heightCm > 0) {
-        	const heightM = heightCm / 100;
-        	return (weightKg / (heightM * heightM)).toFixed(1);
-    	}
-    	return 'N/A';
-	}
+        if (weightKg > 0 && heightCm > 0) {
+            const heightM = heightCm / 100;
 
-	function calculateAndDisplayBMI() {
-    // Holen der Werte aus den Feldern
-    	let weight = getNumericValue(gewichtEl);
-    	let height = getNumericValue(koerpergroesseEl);
-    
-    	// Falls das Feld leer ist (beim ersten Laden), nimm den gespeicherten Wert
-    	if (!height && userVitalInfo && userVitalInfo.koerpergroesse) {
-        	height = parseFloat(userVitalInfo.koerpergroesse);
-    	}
+            const bmi = weightKg / (heightM * heightM); 
+            return bmi.toFixed(1);
+        }
+        return 'N/A';
+    }
 
-    	const bmi = calculateBMI(weight, height);
-    
-    	if (bmiDisplayEl) {
-        	bmiDisplayEl.value = bmi;
+    function calculateAndDisplayBMI() {
+        const weight = getNumericValue(gewichtEl);
+        const height = getNumericValue(koerpergroesseEl);
+        const bmi = calculateBMI(weight, height);
         
+        bmiDisplayEl.value = bmi;
         
-        	bmiDisplayEl.className = `w-full p-2 border border-gray-300 rounded-lg text-center font-bold 
-            	${bmi === 'N/A' ? 'bg-gray-100' : 
-            	bmi < 18.5 ? 'bg-blue-200 text-blue-800' : 
-            	bmi < 25 ? 'bg-green-200 text-green-800' : 
-            	bmi < 30 ? 'bg-yellow-200 text-yellow-800' : 
-            	'bg-red-200 text-red-800'}`;
-    	}
-	}
-	
+
+        bmiDisplayEl.className = `w-full p-2 border border-gray-300 rounded-lg text-center font-bold 
+            ${bmi === 'N/A' ? 'bg-gray-100' : 
+            bmi < 18.5 ? 'bg-blue-200 text-blue-800' : 
+            bmi < 25 ? 'bg-green-200 text-green-800' : 
+            bmi < 30 ? 'bg-yellow-200 text-yellow-800' : 
+            'bg-red-200 text-red-800'}`;
+    }
+
     function preselectTimePeriod() {
         document.querySelectorAll('.period-button').forEach(b => b.classList.remove('selected-period'));
         selectedPeriod = null; 
@@ -356,14 +397,6 @@
         selectedMood = null;
         selectedPain = null; 
         
-        // --- NEU: Schlaf-Sterne zurücksetzen ---
-        selectedSleepQuality = 0; 
-        document.querySelectorAll('.star-rating').forEach(s => {
-            s.classList.add('opacity-30');
-            s.classList.remove('opacity-100');
-        });
-        // ---------------------------------------
-
         entryDateEl.value = new Date().toISOString().split('T')[0]; 
         
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
@@ -381,7 +414,6 @@
         updateWeatherDisplayForSelectedPeriod();
         fetchWeather(entryDateEl.value); 
     }
-
 
     function setupApp() {
         loadActiveUser();
@@ -604,43 +636,6 @@
     }
 
     function setupFormListeners() {
-        // Die Sterne-Logik
-// Die Sterne-Logik mit Abwahl-Funktion
-		document.querySelectorAll('.star-rating').forEach(star => {
-    		star.addEventListener('click', function() {
-		        const clickedValue = parseInt(this.getAttribute('data-value'));
-        
-        // Wenn man auf den bereits gewählten Stern klickt -> auf 0 zurücksetzen
-		        if (selectedSleepQuality === clickedValue) {
-		            selectedSleepQuality = 0;
-		        } else {
-		            selectedSleepQuality = clickedValue;
-		        }
-        
-        // Wert im (optionalen) versteckten Feld speichern
-		        const hiddenInput = document.getElementById('sleep-quality-value');
-		        if (hiddenInput) hiddenInput.value = selectedSleepQuality;
-
-        // Optisches Update: Sterne leuchten lassen oder löschen
-		        const allStars = document.querySelectorAll('.star-rating');
-		        allStars.forEach(s => {
-		            const val = parseInt(s.getAttribute('data-value'));
-		            if (val <= selectedSleepQuality && selectedSleepQuality !== 0) {
-		                s.classList.remove('opacity-30');
-                		s.classList.add('opacity-100');
-            		} else {
-                		s.classList.add('opacity-30');
-                		s.classList.remove('opacity-100');
-		            }
-		        });
-		    });
-		});
-
-
-        // ... ab hier geht dein Code weiter mit geburtsdatumEl.addEventListener ...
-
-
-    
         geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
         koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
         gewichtEl.addEventListener('input', calculateAndDisplayBMI);
@@ -690,7 +685,6 @@
         saveButton.addEventListener('click', saveEntry);
         resetButton.addEventListener('click', resetData); 
         exportButton.addEventListener('click', exportData); 
-        document.getElementById('generate-report-btn').addEventListener('click', generateDoctorReport);
         exportChartButton.addEventListener('click', () => exportChart('moodChart')); 
         exportPainChartButton.addEventListener('click', () => exportChart('painRegionChart')); 
         exportVitalChartButton.addEventListener('click', () => exportChart('vitalChart'));
@@ -741,32 +735,6 @@
 
 
         checkFormValidity();
-        // Dark Mode Logik
-        const darkModeToggle = document.getElementById('dark-mode-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const htmlElement = document.documentElement;
-
-        // Beim Laden prüfen, ob Dark Mode bereits aktiv war
-        if (localStorage.getItem('theme') === 'dark') {
-            htmlElement.classList.add('dark');
-            themeIcon.textContent = '☀️';
-        }
-
-        darkModeToggle.addEventListener('click', () => {
-            // Klasse "dark" am <html> Element umschalten
-            htmlElement.classList.toggle('dark');
-            
-            const isDark = htmlElement.classList.contains('dark');
-            themeIcon.textContent = isDark ? '☀️' : '🌙';
-            
-            // Auswahl dauerhaft speichern
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            
-            // Optional: Diagramme neu zeichnen, falls vorhanden (für Achsenfarben)
-            if (typeof allStoredEntries !== 'undefined' && allStoredEntries.length > 0) {
-                renderMoodChart(allStoredEntries);
-            }
-        });        
     }
     
     function calculateAge(birthdateString) {
@@ -794,81 +762,76 @@
         return value === '' ? null : parseFloat(value);
     }
 
-	function saveEntry() {		
-    	const entryDate = entryDateEl.value; 
-    	if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
-        	statusMessageEl.textContent = "Bitte alle notwendigen Felder ausfüllen.";
-        	statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-        	return;
-    	}
+	function saveEntry() {
+ 	   const entryDate = entryDateEl.value; 
+ 	   if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
+ 	       statusMessageEl.textContent = "Bitte alle notwendigen Felder ausfüllen.";
+ 	       statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        return;
+	    }
 
-    	saveButton.disabled = true;
-    	statusMessageEl.textContent = 'Speichere...';
+	    saveButton.disabled = true;
+	    statusMessageEl.textContent = 'Speichere...';
 
-    	// WICHTIG: Körpergröße sicherstellen
-    	let koerpergroesse = getNumericValue(koerpergroesseEl);
-    	if (!koerpergroesse && userVitalInfo && userVitalInfo.koerpergroesse) {
-        	koerpergroesse = parseFloat(userVitalInfo.koerpergroesse);
-    	}
+	    const docId = `${entryDate}_${selectedPeriod}`; 
+	    const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
+	    const painRegions = getSelectedPainRegions(); 
     
-    	const geburtsdatum = geburtsdatumEl.value.trim() || null;
-    	const gewicht = getNumericValue(gewichtEl);
+  	  const geburtsdatum = geburtsdatumEl.value.trim() || null;
+   	 const koerpergroesse = getNumericValue(koerpergroesseEl);
     
-    	// Vitalinfo global aktualisieren
-    	saveUserVitalInfo(geburtsdatum, koerpergroesse); 
+   	 saveUserVitalInfo(geburtsdatum, koerpergroesse); 
 
-    	// BMI mit den aktuellen Werten berechnen
-    	const bmi = calculateBMI(gewicht, koerpergroesse);
-    	const alter = calculateAge(geburtsdatum);
+   	 const gewicht = getNumericValue(gewichtEl);
+   	 const bmi = calculateBMI(gewicht, koerpergroesse);
+   	 const alter = calculateAge(geburtsdatum);
 
-    	const docId = `${entryDate}_${selectedPeriod}`; 
-    	const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
-    	const painRegions = getSelectedPainRegions(); 
+   	 const newEntry = {
+   	     id: docId, 
+   	     date: entryDate, 
+   	     timePeriod: selectedPeriod,
+   	     mood: selectedMood,
+   	     pain: selectedPain, 
+   	     schmerzRegionen: painRegions, 
+   	     geburtsdatum: geburtsdatum, 
+   	     koerpergroesse: koerpergroesse, 
+   	     alter: alter, 
+   	     gewicht: gewicht,
+   	     bmi: bmi,
+   	     puls: getNumericValue(pulsEl), 
+   	     blutzucker: getNumericValue(blutzuckerEl),
+   	     blutdruckSys: getNumericValue(blutdruckSysEl),
+   	     blutdruckDia: getNumericValue(blutdruckDiaEl),
+   	     note: noteEl.value.trim(),
+   	     temperature: weather.temperature, 
+   	     weatherCondition: weather.weatherCondition, 
+   	     timestamp: new Date().getTime(),
+   	     sleepQuality: parseInt(sleepInput.value) || 0
+   	 };
 
-    	const newEntry = {
-        	id: docId, 
-        	date: entryDate, 
-        	timePeriod: selectedPeriod,
-        	mood: selectedMood,
-        	pain: selectedPain, 
-        	sleepQuality: selectedSleepQuality,
-        	schmerzRegionen: painRegions, 
-        	geburtsdatum: geburtsdatum, 
-        	koerpergroesse: koerpergroesse, // Hier war oft der Fehler
-        	alter: alter, 
-        	gewicht: gewicht,
-        	bmi: bmi, // Der berechnete Wert
-        	puls: getNumericValue(pulsEl), 
-        	blutzucker: getNumericValue(blutzuckerEl),
-        	blutdruckSys: getNumericValue(blutdruckSysEl),
-        	blutdruckDia: getNumericValue(blutdruckDiaEl),
-        	note: noteEl.value.trim(),
-        	temperature: weather.temperature, 
-        	weatherCondition: weather.weatherCondition, 
-        	timestamp: new Date().getTime() 
-    	};
+   	 const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
+   	 if (existingIndex > -1) {
+   	     allStoredEntries[existingIndex] = newEntry; 
+   	 } else {
+   	     allStoredEntries.push(newEntry); 
+   	 }
 
-    	// ... Rest der Funktion (allStoredEntries.push etc.)
-    	const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
-    	if (existingIndex > -1) {
-        	allStoredEntries[existingIndex] = newEntry; 
-    	} else {
-        	allStoredEntries.push(newEntry); 
-    	}
-
-    	try {
-        	saveEntriesToLocalStorage(allStoredEntries);
-        	statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
-        	statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+   	 try {
+        saveEntriesToLocalStorage(allStoredEntries);
+   	     statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+   	     statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
         
-        	setTimeout(() => {
-            	window.location.reload(); 
-        	}, 1500);
-    	} catch (error) {
-        	saveButton.disabled = false;
-    	}
+   	     setTimeout(() => {
+   	         window.location.reload(); 
+   	     }, 1500);
+   	 } catch (error) {
+   	     console.error("Fehler beim Speichern:", error);
+   	     statusMessageEl.textContent = 'Fehler beim Speichern.';
+   	     statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+   	 } finally {
+   	     saveButton.disabled = false;
+   	 }
 	}
-
 
     function loadHistoryAndStartListening() {
         renderSortedHistory(allStoredEntries, true);
@@ -930,13 +893,14 @@
                 entry.date.substring(5, 7) === selectedMonth
             );
         }
-        renderStats(filteredEntries);
-        renderHistory(filteredEntries);
-	    if (typeof renderMoodChart !== 'undefined') { renderMoodChart(filteredEntries); }
-    	if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(filteredEntries); }
-    	if (typeof renderVitalChart !== 'undefined') { renderVitalChart(filteredEntries); }
-}        
-    
+    	renderStats(filteredEntries);
+    	renderHistory(filteredEntries);
+
+    // NEU: Hier werden die Diagramme mit den gefilterten Daten aktualisiert
+    	if (typeof renderMoodChart === 'function') renderMoodChart(filteredEntries);
+    	if (typeof renderPainRegionChart === 'function') renderPainRegionChart(filteredEntries);
+    	if (typeof renderVitalChart === 'function') renderVitalChart(filteredEntries);
+	}
     
     function renderStats(entries) {
         statsContainerEl.innerHTML = '';
@@ -1013,7 +977,7 @@
         const BMI_COLOR = '#4c51bf'; 
 
 
-        const moodCard = createStatCard( 'Ø Stimmung (0-5)', avgMood, '', MOOD_COLOR );
+        const moodCard = createStatCard( 'Ø Stimmung (1-5)', avgMood, '', MOOD_COLOR );
         const painCard = createStatCard( 'Ø Schmerz (0-10)', avgPain, '', PAIN_COLOR );
         const tempCard = createStatCard( 'Ø Temp', avgTemp, avgTemp !== 'N/A' ? '°C' : '', TEMP_COLOR );
         const pulsCard = createStatCard( 'Ø Puls', avgPuls, avgPuls !== 'N/A' ? ' BPM' : '', PULS_COLOR );
@@ -1042,11 +1006,14 @@
 
         if (updateChartFilter) {
             populateYearFilter(allStoredEntries);
-            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value);
-            return;
-		}
-		renderHistory(sortedEntries);
-	}	
+            if (typeof renderMoodChart !== 'undefined') { renderMoodChart(allStoredEntries); }
+            if (typeof renderPainRegionChart !== 'undefined') { renderPainRegionChart(allStoredEntries); }
+            if (typeof renderVitalChart !== 'undefined') { renderVitalChart(allStoredEntries); }
+            filterHistoryByYearMonth(yearFilterEl.value, monthFilterEl.value); 
+            return; 
+        }
+        renderHistory(sortedEntries);
+    }
     
     function renderHistory(entries) {
         loadingHistoryEl.classList.add('hidden');
@@ -1093,71 +1060,75 @@
         });
     }
 
-    function createEntryHtml(entry) {
-        const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
-        const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
+	function createEntryHtml(entry) {
+    // Generierung der Sterne für die Liste
+   	 const sleepStarsHtml = entry.sleepQuality > 0 
+    	    ? `<span class="text-yellow-500 ml-2">${"★".repeat(entry.sleepQuality)}</span>` 
+    	    : '<span class="text-gray-400 ml-2 text-xs">Kein Schlaf erfasst</span>';
         
-        // --- Schlaf-Emojis generieren ---
-        let sleepRow = '';
-        if (entry.sleepQuality && entry.sleepQuality > 0) {
-            // Wir erstellen eine eigene Zeile für die Schlaf-Emojis
-            sleepRow = `<div class="text-xs mb-1" title="Schlafqualität">${'😴'.repeat(entry.sleepQuality)}</div>`;
-        }
+    	const moodEmoji = MOOD_EMOJIS[entry.mood] || '❓';
+    	const moodName = window.MOOD_NAMES[entry.mood] || 'Unbekannt';
+    
+    // Schmerzanzeige
+    	const painDisplay = entry.pain !== undefined && entry.pain !== null 
+    	                     ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
+    	                     : '';
+                         
+    	const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
+    	                     ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
+    	                     : '';
+    
+    // Vitaldaten sammeln
+    	let vitalData = [];
+    	if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
+    	if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
+    	if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); 
+    	if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
+    	if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
+    	     vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
+    	}
+    
+    	const alterDisplay = entry.alter !== undefined && entry.alter !== null
+    	                    ? `<span class="text-xs font-medium text-gray-500 ml-3">Alter: ${entry.alter}</span>`
+    	                    : '';
+    
+    	const vitalLine = vitalData.length > 0 
+    	                    ? `<p class="text-xs text-yellow-700 font-medium mt-1 flex items-center">${vitalData.join(' · ')}${alterDisplay}</p>` 
+    	                    : '';
 
-        const painDisplay = entry.pain !== undefined && entry.pain !== null 
-                             ? `<span class="text-purple-600 font-bold ml-2">Schmerz: ${entry.pain}/10</span>`
-                             : '';
-        const painRegions = entry.schmerzRegionen && entry.schmerzRegionen.length > 0
-                             ? `<span class="text-xs font-medium text-purple-500 ml-3 bg-purple-100 px-2 py-0.5 rounded-full">${entry.schmerzRegionen.map(r => PAIN_REGION_NAMES[r] || r).join(', ')}</span>`
-                             : '';
-        
-        let vitalData = [];
-        if (entry.puls !== undefined && entry.puls !== null) vitalData.push(`Puls: ${entry.puls} BPM`);
-        if (entry.gewicht !== undefined && entry.gewicht !== null) vitalData.push(`Gewicht: ${entry.gewicht} kg`);
-        if (entry.bmi !== undefined && entry.bmi !== null && entry.bmi !== 'N/A') vitalData.push(`BMI: ${entry.bmi}`); 
-        if (entry.blutzucker !== undefined && entry.blutzucker !== null) vitalData.push(`BZ: ${entry.blutzucker} mg/dL`);
-        if (entry.blutdruckSys !== undefined && entry.blutdruckSys !== null && entry.blutdruckDia !== undefined && entry.blutdruckDia !== null) {
-             vitalData.push(`RR: ${entry.blutdruckSys}/${entry.blutdruckDia} mmHg`);
-        }
-        
-        const alterDisplay = entry.alter !== undefined && entry.alter !== null
-                            ? `<span class="text-xs font-medium text-gray-500 ml-3">Alter: ${entry.alter}</span>`
-                            : '';
-        
-        const vitalLine = vitalData.length > 0 
-                            ? `<p class="text-xs text-yellow-700 font-medium mt-1 flex items-center">${vitalData.join(' · ')}${alterDisplay}</p>` 
-                            : '';
+    // Wetterdaten
+    	let weatherLine = '';
+    	if (entry.temperature !== undefined && entry.temperature !== null) { weatherLine += `${entry.temperature}°C`; }
+    	if (entry.weatherCondition) {
+    	     if (weatherLine) weatherLine += ' · ';
+    	     weatherLine += entry.weatherCondition;
+    	}
 
-        let weatherLine = '';
-        if (entry.temperature !== undefined && entry.temperature !== null) { weatherLine += `${entry.temperature}°C`; }
-        if (entry.weatherCondition) {
-             if (weatherLine) weatherLine += ' · ';
-             weatherLine += entry.weatherCondition;
-        }
-
-        return `
-            <div class="flex py-3 px-4 bg-white border-b border-gray-100 last:border-b-0 history-entry-item">
-                <div class="flex items-start space-x-3 w-full">
-                    <span class="flex-shrink-0 text-xl font-bold text-indigo-500 w-16">${entry.timePeriod}</span>
-                    <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
-                    <div class="text-sm flex-grow min-w-0">
-                        ${sleepRow}
-                        <p class="font-semibold text-gray-700 flex items-center flex-wrap">
-                            ${moodName}${painDisplay}${painRegions}
-                        </p>
-                        ${vitalLine}
-                        ${entry.note || weatherLine ? 
-                            `<p class="text-gray-500 italic text-xs mt-1 break-words">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
-                        : ''}
-                    </div>
-                </div>
-                <button class="delete-entry-btn hover:text-red-600 ml-2" data-id="${entry.id}" title="Eintrag löschen">
-                    &times;
-                </button>
-            </div>
-        `;
-    }
-
+    // Das fertige HTML-Template zurückgeben
+    	return `
+    	    <div class="flex py-3 px-4 bg-white border-b border-gray-100 last:border-b-0 history-entry-item">
+    	        <div class="flex items-start space-x-3 w-full">
+    	            <span class="flex-shrink-0 text-xl font-bold text-indigo-500 w-16">${entry.timePeriod}</span>
+    	            <div class="flex-shrink-0 text-3xl">${moodEmoji}</div>
+    	            <div class="text-sm flex-grow min-w-0">
+    	                <p class="font-semibold text-gray-700 flex items-center flex-wrap">
+    	                    ${moodName}${painDisplay}${painRegions}
+    	                </p>
+    	                <p class="text-xs font-bold text-gray-600 flex items-center mt-0.5">
+    	                    Schlaf: ${sleepStarsHtml}
+    	                </p>
+    	                ${vitalLine}
+    	                ${(entry.note || weatherLine) ? 
+    	                    `<p class="text-gray-500 italic text-xs mt-1 break-words">${entry.note ? entry.note + (weatherLine ? ' | ' : '') : ''}${weatherLine}</p>` 
+    	                : ''}
+    	            </div>
+    	        </div>
+    	        <button class="delete-entry-btn hover:text-red-600 text-2xl px-2" data-id="${entry.id}" title="Eintrag löschen">
+    	            &times;
+    	        </button>
+    	    </div>
+    	`;
+	}
 
 
     function deleteEntry(id) {
@@ -1342,83 +1313,6 @@
 
         reader.readAsText(file);
     }
-    
-	function generateDoctorReport() {
-		const entries = allStoredEntries || [];
-		if (entries.length === 0) {
-			alert("Keine Daten für einen Bericht vorhanden.");
-			return;
-		}
-	
-		// 1. Vorbereitung: Scroll-Container deaktivieren und Charts strecken
-		const moodCont = document.getElementById('chart-container');
-		const vitalCont = document.getElementById('vital-chart-container');
-		
-		// Alte Breiten speichern, um sie später wiederherzustellen
-		const oldMoodStyle = moodCont.style.overflowX;
-		const oldVitalStyle = vitalCont.style.overflowX;
-	
-		// Für den Druck: Überlauf erlauben
-		moodCont.style.overflowX = 'visible';
-		vitalCont.style.overflowX = 'visible';
-		
-		// Charts anweisen, sich voll zu entfalten
-		if (moodChartInstance) {
-			moodChartEl.style.width = '100%';
-			moodChartInstance.resize();
-		}
-		if (vitalChartInstance) {
-			vitalChartEl.style.width = '100%';
-			vitalChartInstance.resize();
-		}
-	
-		// 2. Statistiken berechnen
-		let moodSum = 0;
-		let painSum = 0;
-		entries.forEach(e => {
-			moodSum += window.MOOD_VALUES[e.mood] || 3;
-			painSum += e.pain || 0;
-		});
-	
-		// 3. Header einfügen
-		const reportHeader = document.createElement('div');
-		reportHeader.id = "temp-report-header";
-		reportHeader.className = "hidden print:block mb-8 border-b-2 border-indigo-700 pb-4";
-		reportHeader.innerHTML = `
-			<div class="flex justify-between items-end">
-				<div>
-					<h1 class="text-3xl font-bold text-indigo-700">Medizinischer Verlaufsbericht</h1>
-					<p class="text-gray-600">Patient: ${activeUser}</p>
-				</div>
-				<div class="text-right text-sm">
-					<p>Datum: ${new Date().toLocaleDateString('de-DE')}</p>
-					<p>Zeitraum: ${yearFilterEl.value !== 'all' ? yearFilterEl.value : 'Gesamt'}</p>
-				</div>
-			</div>
-		`;
-		
-		const appElement = document.getElementById('app');
-		appElement.insertBefore(reportHeader, appElement.firstChild);
-	
-		// 4. Druckdialog öffnen
-		window.print();
-	
-		// 5. Aufräumen: Alles wieder in den "App-Modus" (Scrollbar) zurückversetzen
-		reportHeader.remove();
-		moodCont.style.overflowX = oldMoodStyle;
-		vitalCont.style.overflowX = oldVitalStyle;
-		
-		// Charts wieder auf die scrollbare Breite bringen (nutzt die Filter-Logik)
-		const currentEntries = allStoredEntries.filter(entry => {
-			const yearMatch = yearFilterEl.value === 'all' || entry.date.startsWith(yearFilterEl.value);
-			const monthMatch = monthFilterEl.value === 'all' || entry.date.substring(5, 7) === monthFilterEl.value;
-			return yearMatch && monthMatch;
-		});
-	
-		renderMoodChart(currentEntries); 
-		renderVitalChart(currentEntries);
-	}
-    
 
     function formatDate(dateString) {
         try {
@@ -1472,323 +1366,335 @@
         return (normalizedValue / 10 * TEMP_RANGE) + TEMP_MIN;
     }
 
+
 	function renderMoodChart(entries) {
-		if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
-		if (moodChartInstance) { moodChartInstance.destroy(); }
-		
-		const dailyData = {};
-		entries.forEach(entry => {
-   		 const date = entry.date;
-    		if (!dailyData[date]) {
-        		dailyData[date] = { 
-            		moodSum: 0, moodCount: 0, 
-            		painSum: 0, painCount: 0, 
-            		tempSum: 0, tempCount: 0,
-            		sleepSum: 0, sleepCount: 0 
-        		};
-		    }
-		    const m = entry.mood || entry.stimmung;
-		    const p = (entry.pain !== undefined && entry.pain !== null) ? entry.pain : entry.schmerz;
-		    const t = entry.temp || entry.temperatur || entry.temperature;
-		    const s = entry.sleepQuality; 
+		if (typeof Chart === 'undefined') return;
+		if (moodChartInstance) moodChartInstance.destroy();
 
-		    if (m !== undefined && m !== null) {
-		        const val = typeof m === 'string' ? (window.MOOD_VALUES[m] || 0) : m;
-        		dailyData[date].moodSum += Number(val); 
-        		dailyData[date].moodCount++; 
-    		}
-
-    // KORREKTUR HIER: Wir prüfen explizit auf den Typ 'number'
-    // Damit wird auch die 0 als gültiger Wert erkannt!
-    		if (typeof p === 'number') { 
-        		dailyData[date].painSum += p; 
-        		dailyData[date].painCount++; 
-    		}
-
-    		if (t !== undefined && t !== null) { dailyData[date].tempSum += Number(t); dailyData[date].tempCount++; }
-    		if (s !== undefined && s !== null && s > 0) {
-        		dailyData[date].sleepSum += Number(s);
-        		dailyData[date].sleepCount++;
-		    }
-		});
+		const dailyData = entries.reduce((acc, entry) => {
+			const dateKey = entry.date;
+			const moodValue = window.MOOD_VALUES[entry.mood] || 3;
+			if (!acc[dateKey]) { 
+				acc[dateKey] = { moodSum: 0, moodCount: 0, tempSum: 0, tempCount: 0, painSum: 0, painCount: 0, sleepSum: 0, sleepCount: 0 }; 
+			}
+			acc[dateKey].moodSum += moodValue;
+			acc[dateKey].moodCount++;
+			if (entry.temperature !== undefined && entry.temperature !== null) { 
+				acc[dateKey].tempSum += entry.temperature; 
+				acc[dateKey].tempCount++; 
+			}
+			if (entry.pain != null) { acc[dateKey].painSum += entry.pain; acc[dateKey].painCount++; }
+			if (entry.sleepQuality) { acc[dateKey].sleepSum += entry.sleepQuality; acc[dateKey].sleepCount++; }
+			return acc;
+		}, {});
 
 		const sortedDates = Object.keys(dailyData).sort();
 		const chartData = sortedDates.map(date => {
-    		const data = dailyData[date];
-    		const avgTemp = data.tempCount > 0 ? data.tempSum / data.tempCount : null;
-    		return {
-        		date: date,
-        		averageMood: data.moodCount > 0 ? data.moodSum / data.moodCount : null,
-        // Hier ziehen wir 1 ab, damit 1 Stern auf der 0-Linie landet und 5 Sterne auf der 4-Linie
-        		averagePain: data.painCount > 0 ? data.painSum / data.painCount : null, 
-        		averageSleep: data.sleepCount > 0 ? (data.sleepSum / data.sleepCount) - 1 : null,
-        		averageTempNormalized: (typeof normalizeTemperature === 'function' && avgTemp !== null) ? normalizeTemperature(avgTemp) : null,
-    		};
+			const d = dailyData[date];
+			const avgTemp = d.tempCount > 0 ? d.tempSum / d.tempCount : null;
+			return {
+				date,
+				mood: d.moodCount > 0 ? d.moodSum / d.moodCount : null,
+				// Hier wird die Temperatur wieder für die 0-10 Skala umgerechnet
+				tempNormalized: avgTemp !== null ? normalizeTemperature(avgTemp) : null,
+				tempOriginal: avgTemp,
+				sleep: d.sleepCount > 0 ? d.sleepSum / d.sleepCount : null,
+				pain: d.painCount > 0 ? d.painSum / d.painCount : null
+			};
 		});
 
-		const minWidthPerDay = 50; 
-		const calculatedWidth = Math.max(chartContainerEl.offsetWidth, chartData.length * minWidthPerDay);
-		
-		moodChartEl.style.width = calculatedWidth + "px";
-		moodChartEl.width = calculatedWidth; 
+		if (chartData.length === 0) return;
+
+		const PIXELS_PER_POINT = 55; 
+		const minWidth = chartContainerEl.parentElement.clientWidth;
+		const targetWidth = Math.max(minWidth, chartData.length * PIXELS_PER_POINT);
+
+		moodChartEl.width = targetWidth; 
 		moodChartEl.height = 350; 
+		moodChartEl.style.width = targetWidth + "px";
+		moodChartEl.style.height = "350px";
 
 		const ctx = moodChartEl.getContext('2d');
 		moodChartInstance = new Chart(ctx, {
-			type: 'line', 
+			type: 'line',
 			data: {
 				labels: chartData.map(d => window.formatDateShort(d.date)),
 				datasets: [
-					{
-						label: 'Stimmung',
-						data: chartData.map(d => d.averageMood),
-						borderColor: '#2563eb', 
-						backgroundColor: 'rgba(37, 99, 235, 0.2)',
-						yAxisID: 'mood',
-						tension: 0.3,
-						fill: true,
-						borderWidth: 3,
-						pointRadius: 5,
-						spanGaps: true
-					},
-					{
-						label: 'Schlafqualität',
-						data: chartData.map(d => d.averageSleep),
-						type: 'scatter', 
-						backgroundColor: '#facc15', 
-						borderColor: '#eab308',
-						yAxisID: 'mood', 
-						pointStyle: 'star', 
-						pointRadius: 10,    
-						pointHoverRadius: 12
-					},
-					{
-						label: 'Schmerz',
-						data: chartData.map(d => d.averagePain),
-						borderColor: '#9333ea',
-						yAxisID: 'pain',
-						tension: 0.3,
-						pointRadius: 5,
-						spanGaps: true,
-						borderWidth: 3,
-					},
-					{
-						label: 'Temp',
-						data: chartData.map(d => d.averageTempNormalized),
-						borderColor: '#ef4444',
-						borderDash: [5, 5],
-						yAxisID: 'pain',
-						pointRadius: 5,
-						spanGaps: true,
-						borderWidth: 3
-					}
+					{ label: 'Ø Stimmung', data: chartData.map(d => d.mood), borderColor: '#4f46e5', tension: 0.3, pointRadius: 6, yAxisID: 'yMood', borderWidth: 2 },
+					{ label: 'Ø Schmerz', data: chartData.map(d => d.pain), borderColor: '#9333ea', tension: 0.3, pointRadius: 6, yAxisID: 'yPain', borderWidth: 2 },
+					{ label: 'Ø Schlaf', data: chartData.map(d => d.sleep), borderColor: '#facc15', showLine: false, pointStyle: 'star', pointRadius: 6, yAxisID: 'yMood' },
+					{ label: 'Ø Temp', data: chartData.map(d => d.tempNormalized), borderColor: '#ef4444', tension: 0.3, pointRadius: 6, yAxisID: 'yPain', borderWidth: 2 }
 				]
 			},
 			options: {
-				responsive: false, 
+				responsive: false,
 				maintainAspectRatio: false,
+				scales: {
+					x: { ticks: { font: { size: 11 }, maxRotation: 45, minRotation: 45 } },
+					yMood: {
+						type: 'linear', position: 'left', min: 1, max: 5,
+						title: { display: true, text: 'Stimmung / Schlaf', font: { size: 10 } },
+						ticks: { stepSize: 1 }
+					},
+					yPain: {
+						type: 'linear', position: 'right', min: 0, max: 10,
+						title: { display: true, text: 'Schmerz (0-10) / Temp (-5 bis 25°C)', font: { size: 10 } },
+						grid: { drawOnChartArea: false },
+						ticks: {
+							stepSize: 2,
+							callback: function(value) {
+								// Diese Funktion zeigt zusätzlich zur 0-10 Skala die Gradzahlen an
+								const temp = denormalizeTemperature(value);
+								return value + " ( " + temp.toFixed(0) + "°C)";
+							}
+						}
+					}
+				},
 				plugins: {
 					tooltip: {
 						callbacks: {
 							label: function(context) {
 								let label = context.dataset.label || '';
-								let val = context.parsed.y;
-								if (val === null || val === undefined) return label + ': keine Daten';
-								if (label === 'Schlafqualität') return `😴 Schlaf Ø: ${val.toFixed(1)}/5`;
-								if (label === 'Stimmung') return `😊 Stimmung Ø: ${val.toFixed(1)}/5`;
-								if (label === 'Schmerz') return `🏥 Schmerz Ø: ${val.toFixed(1)}/10`;
-								if (label === 'Temp') return `🌡️ Temp Ø: ${val.toFixed(1)}°C `;
-								return `${label}: ${val.toFixed(2)}`;
+								if (label === 'Ø Temp') {
+									const realTemp = chartData[context.dataIndex].tempOriginal;
+									return label + ': ' + (realTemp !== null ? realTemp.toFixed(1) + ' °C' : 'N/A');
+								}
+								return label + ': ' + context.parsed.y.toFixed(1);
 							}
 						}
 					},
-					legend: { display: true, position: 'bottom' }
-				},
-				scales: {
-					mood: {
-					    type: 'linear', 
-					    position: 'left',
-					    min: 0,           // Die Linie beginnt ganz unten
-					    max: 5,           // Da wir bei 0 starten, ist 4 nun der Höchstwert
-					    title: { 
-					        display: true, 
-					        text: 'Stimmung (0-5)' 
-					    },
-					    ticks: { 
-					        stepSize: 1,
-					        callback: function(value) {
-            // Dies benennt die Zahlen auf der Achse für bessere Lesbarkeit um
-					            const labels = {
-					                0: '0 (Sehr schlecht)',
-					                1: '1',
-					                2: '2',
-					                3: '3',
-					                4: '4',					
-					                5: '5 (Sehr gut)'
-					            };
-					            return labels[value] || value;
-					        }
-					    }
-					},
-					pain: {
-				        type: 'linear',
-				        position: 'right',
-				        min: 0,           // Schmerz beginnt ebenfalls bei 0
-				        max: 10,
-				        title: { display: true, text: 'Schmerz | Temp' },
-				        ticks: {
-				            stepSize: 2,
-				            callback: function(value) {
-                // Deine Formel zur Temperaturanzeige
-				                let realTemp = (value / 10 * 30) - 5;
-				                return value + '  │  ' + realTemp.toFixed(0) + '°C';
-				            }
-				        }
-				    }
+					legend: { labels: { boxWidth: 10, font: { size: 10 } } }
 				}
 			}
 		});
+
+		setTimeout(() => { chartContainerEl.scrollLeft = chartContainerEl.scrollWidth; }, 100);
 	}
+
 
 
 
 	function renderVitalChart(entries) {
-    	if (typeof Chart === 'undefined') return;
-    	if (vitalChartInstance) { vitalChartInstance.destroy(); }
-
-    	const dailyData = entries.reduce((acc, entry) => {
-        	const dateKey = entry.date;
-        	if (!acc[dateKey]) { acc[dateKey] = { pulsSum: 0, pulsCount: 0, gewichtSum: 0, gewichtCount: 0, bmiSum: 0, bmiCount: 0 }; }
-        	if (typeof entry.puls === 'number') {
-        		acc[dateKey].pulsSum += entry.puls;
-        		acc[dateKey].pulsCount++;
-        	}
-        	if (typeof entry.gewicht === 'number') {
-        		acc[dateKey].gewichtSum += entry.gewicht;
-				 acc[dateKey].gewichtCount++; 
-			}
-        	if (entry.bmi && entry.bmi !== 'N/A') { acc[dateKey].bmiSum += parseFloat(entry.bmi); acc[dateKey].bmiCount++; }
-        	return acc;
-    	}, {});
-
-    	const sortedDates = Object.keys(dailyData).sort();
-    	const chartData = sortedDates.map(date => {
-        	const d = dailyData[date];
-        	return {
-            	date: date,
-            	puls: d.pulsCount > 0 ? d.pulsSum / d.pulsCount : null,
-            	gewicht: d.gewichtCount > 0 ? d.gewichtSum / d.gewichtCount : null,
-            	bmi: d.bmiCount > 0 ? d.bmiSum / d.bmiCount : null
-        	};
-    	});
-
-    	if (chartData.length === 0) {
-        	vitalChartStatusEl.classList.remove('hidden');
-        	return;
-    	}
-    	vitalChartStatusEl.classList.add('hidden');
-
-    	const finalWidth = Math.max(vitalChartContainerEl.offsetWidth, chartData.length * 50);
-    	vitalChartEl.width = finalWidth;
-    	vitalChartEl.height = 300;
-    	vitalChartEl.style.width = finalWidth + "px";
-
-    	const ctx = vitalChartEl.getContext('2d');
-    	vitalChartInstance = new Chart(ctx, {
-        	type: 'line',
-        	data: {
-            	labels: chartData.map(d => window.formatDateShort(d.date)),
-            	datasets: [
-                	{ label: 'Puls Ø', data: chartData.map(d => d.puls), borderColor: '#10b981', yAxisID: 'y', pointRadius: 6, },
-                	{ label: 'Gewicht Ø', data: chartData.map(d => d.gewicht), borderColor: '#db2777', yAxisID: 'y1', pointRadius: 6, },
-                	{ label: 'BMI Ø', data: chartData.map(d => d.bmi), borderColor: '#4c51bf', borderDash: [5, 5], yAxisID: 'y2', pointRadius: 6, }
-            	]
-        	},
-        	options: {
-            	responsive: false,
-            	maintainAspectRatio: false,
-            	scales: {
-                	y: { type: 'linear', position: 'left', min: 40, max: 120, title: { display: true, text: 'Puls' } },
-                	y1: { type: 'linear', position: 'right', min: 40, max: 120, grid: { drawOnChartArea: false }, title: { display: true, text: 'kg' } },
-                	y2: { type: 'linear', position: 'right', min: 15, max: 45, grid: { drawOnChartArea: false }, title: { display: true, text: 'BMI' } }
-            	},
-            	plugins: { legend: { display: true, position: 'bottom' } }
-        	}
-    	});
+	    if (typeof Chart === 'undefined') return;
+	    if (vitalChartInstance) vitalChartInstance.destroy();
+	
+	    const dataToUse = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+	    
+	    if (dataToUse.length === 0) {
+	        if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.remove('hidden');
+	        return;
+	    }
+	    if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.add('hidden');
+	
+	    const PIXELS_PER_POINT = 60; 
+	    const parentWidth = vitalChartContainerEl.parentElement.clientWidth;
+	    const targetWidth = Math.max(parentWidth, dataToUse.length * PIXELS_PER_POINT);
+	
+	    vitalChartEl.width = targetWidth; 
+	    vitalChartEl.height = 350; 
+	    vitalChartEl.style.width = targetWidth + "px";
+	    vitalChartEl.style.height = "350px";
+	
+	    const ctx = vitalChartEl.getContext('2d');
+	    vitalChartInstance = new Chart(ctx, {
+	        type: 'line',
+	        data: {
+	            labels: dataToUse.map(e => window.formatDateShort ? window.formatDateShort(e.date) : e.date),
+	            datasets: [
+	                {
+	                    label: 'Blutdruck (Sys)',
+	                    data: dataToUse.map(e => e.blutdruckSys ? parseFloat(e.blutdruckSys) : null),
+	                    borderColor: '#6b7280',
+	                    borderWidth: 2,
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'yPressure',
+	                    spanGaps: true
+	                },
+	                {
+	                    label: 'Blutdruck (Dia)',
+	                    data: dataToUse.map(e => e.blutdruckDia ? parseFloat(e.blutdruckDia) : null),
+	                    borderColor: '#3b82f6',
+	                    borderWidth: 2,
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'yPressure',
+	                    spanGaps: true
+	                },
+	                {
+	                    label: 'Blutzucker',
+	                    data: dataToUse.map(e => e.blutzucker ? parseFloat(e.blutzucker) : null),
+	                    borderColor: '#f59e0b',
+	                    borderWidth: 2,
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'ySugar',
+	                    spanGaps: true
+	                },	
+	                {
+	                    label: 'Puls',
+	                    data: dataToUse.map(e => e.puls ? parseFloat(e.puls) : null), // KORRIGIERT: e.puls statt e.pulse
+	                    borderColor: '#10b981',
+	                    borderWidth: 2,
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'yPulse',
+	                    spanGaps: true
+	                },
+	                {
+	                    label: 'Gewicht (kg)',
+	                    data: dataToUse.map(e => e.gewicht ? parseFloat(e.gewicht) : null), // KORRIGIERT: e.gewicht statt e.weight
+	                    borderColor: '#db2777',
+	                    borderWidth: 2,
+	                    borderDash: [5, 5],
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'yPulse',
+	                    spanGaps: true
+	                },
+	                {
+	                    label: 'BMI',
+	                    data: dataToUse.map(e => (e.bmi && e.bmi !== 'N/A') ? parseFloat(e.bmi) : null),
+	                    borderColor: '#4c51bf',
+	                    borderWidth: 2,
+	                    tension: 0.3,
+						pointRadius: 6, 
+	                    yAxisID: 'yPulse',
+	                    spanGaps: true
+	                }
+	            ]
+	        },
+	        options: {
+	            responsive: false,
+	            maintainAspectRatio: false,
+	            scales: {
+	                x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
+	                yPressure: {
+	                    type: 'linear',
+	                    position: 'left',
+	                    beginAtZero: false,
+	                    title: { display: true, text: 'Blutdruck', font: { size: 9 } }
+	                },
+	                yPulse: {
+	                    type: 'linear',
+	                    position: 'right',
+	                    beginAtZero: false,
+	                    grid: { drawOnChartArea: false },
+	                    title: { display: true, text: 'Puls / kg / BMI', font: { size: 9 } },
+	                    ticks: { font: { size: 9 } }
+	                },
+	                ySugar: {
+	                    type: 'linear',
+	                    position: 'right',
+	                    beginAtZero: false,
+	                    grid: { drawOnChartArea: false },
+	                    title: { display: true, text: 'Zucker', font: { size: 9 } },
+	                    ticks: { font: { size: 9 } }
+	                }                       
+	            }
+	        }
+	    });
+	
+	    setTimeout(() => {
+	        vitalChartContainerEl.scrollLeft = vitalChartContainerEl.scrollWidth;
+	    }, 100);
 	}
 
-	function renderPainRegionChart(entries) {
-		if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
-		if (painRegionChartInstance) { painRegionChartInstance.destroy(); }
-		
-		const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
-		let totalCount = 0;
-	
-		entries.forEach(entry => {
-			if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
-				entry.schmerzRegionen.forEach(region => {
-					if (regionCounts.hasOwnProperty(region)) {
-						regionCounts[region]++;
-						totalCount++;
-					}
-				});
-			}
-		});
-		
-		if (totalCount === 0) {
-			painChartStatusEl.classList.remove('hidden');
-			exportPainChartButton.disabled = true;
-			return;
-		}
-		painChartStatusEl.classList.add('hidden');
-		exportPainChartButton.disabled = false;
-	
-		const dataValues = Object.keys(regionCounts).map(key => {
-			return totalCount > 0 ? ((regionCounts[key] / totalCount) * 100).toFixed(1) : 0;
-		});
-	
-		const ctx = painRegionChartEl.getContext('2d');
-		painRegionChartInstance = new Chart(ctx, {
-			type: 'pie',
-			data: {
-				labels: Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]),
-				datasets: [{
-					data: dataValues,
-					backgroundColor: ['rgba(147, 51, 234, 0.8)', 'rgba(192, 132, 252, 0.8)', 'rgba(233, 213, 255, 0.8)'],
-					borderWidth: 1
-				}]
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { position: 'right' },
-					title: { 
-						display: true, 
-						text: `Verteilung in Prozent (Gesamt: ${totalCount} Nennungen)` 
-					},
-					tooltip: {
-						callbacks: {
-							label: function(context) {
-								return `${context.label}: ${context.parsed}%`;
-							}
-						}
-					}
-				}
-			}
-		});
-	}
+    function renderPainRegionChart(entries) {
+        if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
+        if (painRegionChartInstance) { painRegionChartInstance.destroy(); }
+        
+        const dataToUse = entries; 
+        const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
+        let totalCount = 0;
 
+        dataToUse.forEach(entry => {
+            if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
+                entry.schmerzRegionen.forEach(region => {
+                    if (regionCounts.hasOwnProperty(region)) {
+                        regionCounts[region]++;
+                        totalCount++;
+                    }
+                });
+            }
+        });
+        
+        if (totalCount === 0) {
+            painChartStatusEl.classList.remove('hidden');
+            exportPainChartButton.disabled = true;
+            return;
+        }
+        painChartStatusEl.classList.add('hidden');
+        exportPainChartButton.disabled = false;
 
+        const labels = Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]);
+        const data = Object.values(regionCounts);
+        
+        const backgroundColors = [
+            'rgba(147, 51, 234, 0.8)', 
+            'rgba(192, 132, 252, 0.8)', 
+            'rgba(233, 213, 255, 0.8)' 
+        ];
+        
+        const borderColors = [
+            'rgb(147, 51, 234)',
+            'rgb(192, 132, 252)',
+            'rgb(233, 213, 255)'
+        ];
 
-    // Ganz am Ende der Datei:
+        const ctx = painRegionChartEl.getContext('2d');
+        painRegionChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Häufigkeit der Schmerzregionen',
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 20 }
+                    },
+                    title: {
+                        display: true,
+                        text: `Gesamte Schmerzereignisse: ${totalCount}`,
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const count = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0); 
+                                const percentage = total === 0 ? '0.0%' : ((count / total) * 100).toFixed(1) + '%';
+                                
+                                return `${context.label}: ${count} mal (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     setupFormListeners(); 
     setupApp(); 
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-          .then(reg => console.log('SW registriert'))
-          .catch(err => console.error('SW Fehler', err));
+          .then(registration => {
+            console.log('ServiceWorker-Registrierung erfolgreich:', registration);
+          })
+          .catch(err => {
+            console.error('ServiceWorker-Registrierung fehlgeschlagen:', err);
+          });
       });
     }
