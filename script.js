@@ -1368,9 +1368,26 @@
 
 
 	function renderMoodChart(entries) {
+		
 		if (typeof Chart === 'undefined') return;
 		if (moodChartInstance) moodChartInstance.destroy();
-
+	
+		// --- NEU: Prüfung auf Datenmenge ---
+		// Wir prüfen hier auf Einträge von mindestens 2 verschiedenen Tagen
+		const uniqueDates = [...new Set(entries.map(e => e.date))];
+		
+		if (uniqueDates.length < 2) {
+			chartStatusEl.classList.remove('hidden'); // Zeige "Nicht genügend Daten..."
+			if (moodChartInstance) moodChartInstance.destroy();
+			// Canvas leeren, damit kein alter Chart hängen bleibt
+			const ctx = moodChartEl.getContext('2d');
+			ctx.clearRect(0, 0, moodChartEl.width, moodChartEl.height);
+			return; 
+		} else {
+			chartStatusEl.classList.add('hidden'); // Verstecke die Meldung
+		}
+		// --- Ende der Korrektur ---
+	
 		const dailyData = entries.reduce((acc, entry) => {
 			const dateKey = entry.date;
 			const moodValue = window.MOOD_VALUES[entry.mood] || 3;
@@ -1387,7 +1404,7 @@
 			if (entry.sleepQuality) { acc[dateKey].sleepSum += entry.sleepQuality; acc[dateKey].sleepCount++; }
 			return acc;
 		}, {});
-
+	
 		const sortedDates = Object.keys(dailyData).sort();
 		const chartData = sortedDates.map(date => {
 			const d = dailyData[date];
@@ -1395,25 +1412,22 @@
 			return {
 				date,
 				mood: d.moodCount > 0 ? d.moodSum / d.moodCount : null,
-				// Hier wird die Temperatur wieder für die 0-10 Skala umgerechnet
 				tempNormalized: avgTemp !== null ? normalizeTemperature(avgTemp) : null,
 				tempOriginal: avgTemp,
 				sleep: d.sleepCount > 0 ? d.sleepSum / d.sleepCount : null,
 				pain: d.painCount > 0 ? d.painSum / d.painCount : null
 			};
 		});
-
-		if (chartData.length === 0) return;
-
+	
 		const PIXELS_PER_POINT = 55; 
 		const minWidth = chartContainerEl.parentElement.clientWidth;
 		const targetWidth = Math.max(minWidth, chartData.length * PIXELS_PER_POINT);
-
+	
 		moodChartEl.width = targetWidth; 
 		moodChartEl.height = 350; 
 		moodChartEl.style.width = targetWidth + "px";
 		moodChartEl.style.height = "350px";
-
+	
 		const ctx = moodChartEl.getContext('2d');
 		moodChartInstance = new Chart(ctx, {
 			type: 'line',
@@ -1438,14 +1452,13 @@
 					},
 					yPain: {
 						type: 'linear', position: 'right', min: 0, max: 10,
-						title: { display: true, text: 'Schmerz (0-10) / Temp (-5 bis 25°C)', font: { size: 10 } },
+						title: { display: true, text: 'Schmerz / Temp', font: { size: 10 } },
 						grid: { drawOnChartArea: false },
 						ticks: {
 							stepSize: 2,
 							callback: function(value) {
-								// Diese Funktion zeigt zusätzlich zur 0-10 Skala die Gradzahlen an
 								const temp = denormalizeTemperature(value);
-								return value + " ( " + temp.toFixed(0) + "°C)";
+								return value + " (" + temp.toFixed(0) + "°C)";
 							}
 						}
 					}
@@ -1467,7 +1480,7 @@
 				}
 			}
 		});
-
+	
 		setTimeout(() => { chartContainerEl.scrollLeft = chartContainerEl.scrollWidth; }, 100);
 	}
 
