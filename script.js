@@ -1491,17 +1491,52 @@
 	    if (typeof Chart === 'undefined') return;
 	    if (vitalChartInstance) vitalChartInstance.destroy();
 	
-	    const dataToUse = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+	    // --- NEU: Gruppierung nach Datum für Tagesdurchschnitte ---
+	    const dailyVitals = entries.reduce((acc, entry) => {
+	        const dateKey = entry.date;
+	        if (!acc[dateKey]) { 
+	            acc[dateKey] = { 
+	                sysSum: 0, sysCount: 0, diaSum: 0, diaCount: 0, 
+	                pulsSum: 0, pulsCount: 0, bzSum: 0, bzCount: 0, 
+	                gewSum: 0, gewCount: 0, bmiSum: 0, bmiCount: 0 
+	            }; 
+	        }
+	        
+	        if (entry.blutdruckSys) { acc[dateKey].sysSum += parseFloat(entry.blutdruckSys); acc[dateKey].sysCount++; }
+	        if (entry.blutdruckDia) { acc[dateKey].diaSum += parseFloat(entry.blutdruckDia); acc[dateKey].diaCount++; }
+	        if (entry.puls) { acc[dateKey].pulsSum += parseFloat(entry.puls); acc[dateKey].pulsCount++; }
+	        if (entry.blutzucker) { acc[dateKey].bzSum += parseFloat(entry.blutzucker); acc[dateKey].bzCount++; }
+	        if (entry.gewicht) { acc[dateKey].gewSum += parseFloat(entry.gewicht); acc[dateKey].gewCount++; }
+	        if (entry.bmi && entry.bmi !== 'N/A') { acc[dateKey].bmiSum += parseFloat(entry.bmi); acc[dateKey].bmiCount++; }
+	        
+	        return acc;
+	    }, {});
+
+	    const sortedDates = Object.keys(dailyVitals).sort();
 	    
-	    if (dataToUse.length === 0) {
+	    if (sortedDates.length === 0) {
 	        if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.remove('hidden');
 	        return;
 	    }
 	    if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.add('hidden');
-	
+
+	    // Daten für das Diagramm vorbereiten (Durchschnitte berechnen)
+	    const chartLabels = sortedDates.map(d => window.formatDateShort ? window.formatDateShort(d) : d);
+	    const processedData = sortedDates.map(date => {
+	        const d = dailyVitals[date];
+	        return {
+	            sys: d.sysCount > 0 ? d.sysSum / d.sysCount : null,
+	            dia: d.diaCount > 0 ? d.diaSum / d.diaCount : null,
+	            puls: d.pulsCount > 0 ? d.pulsSum / d.pulsCount : null,
+	            bz: d.bzCount > 0 ? d.bzSum / d.bzCount : null,
+	            gew: d.gewCount > 0 ? d.gewSum / d.gewCount : null,
+	            bmi: d.bmiCount > 0 ? d.bmiSum / d.bmiCount : null
+	        };
+	    });
+
 	    const PIXELS_PER_POINT = 60; 
 	    const parentWidth = vitalChartContainerEl.parentElement.clientWidth;
-	    const targetWidth = Math.max(parentWidth, dataToUse.length * PIXELS_PER_POINT);
+	    const targetWidth = Math.max(parentWidth, sortedDates.length * PIXELS_PER_POINT);
 	
 	    vitalChartEl.width = targetWidth; 
 	    vitalChartEl.height = 350; 
@@ -1512,11 +1547,11 @@
 	    vitalChartInstance = new Chart(ctx, {
 	        type: 'line',
 	        data: {
-	            labels: dataToUse.map(e => window.formatDateShort ? window.formatDateShort(e.date) : e.date),
+	            labels: chartLabels,
 	            datasets: [
 	                {
 	                    label: 'Blutdruck (Sys)',
-	                    data: dataToUse.map(e => e.blutdruckSys ? parseFloat(e.blutdruckSys) : null),
+	                    data: processedData.map(d => d.sys),
 	                    borderColor: '#6b7280',
 	                    borderWidth: 2,
 	                    tension: 0.3,
@@ -1526,7 +1561,7 @@
 	                },
 	                {
 	                    label: 'Blutdruck (Dia)',
-	                    data: dataToUse.map(e => e.blutdruckDia ? parseFloat(e.blutdruckDia) : null),
+	                    data: processedData.map(d => d.dia),
 	                    borderColor: '#3b82f6',
 	                    borderWidth: 2,
 	                    tension: 0.3,
@@ -1536,7 +1571,7 @@
 	                },
 	                {
 	                    label: 'Blutzucker',
-	                    data: dataToUse.map(e => e.blutzucker ? parseFloat(e.blutzucker) : null),
+	                    data: processedData.map(d => d.bz),
 	                    borderColor: '#f59e0b',
 	                    borderWidth: 2,
 	                    tension: 0.3,
@@ -1546,7 +1581,7 @@
 	                },	
 	                {
 	                    label: 'Puls',
-	                    data: dataToUse.map(e => e.puls ? parseFloat(e.puls) : null), // KORRIGIERT: e.puls statt e.pulse
+	                    data: processedData.map(d => d.puls),
 	                    borderColor: '#10b981',
 	                    borderWidth: 2,
 	                    tension: 0.3,
@@ -1556,7 +1591,7 @@
 	                },
 	                {
 	                    label: 'Gewicht (kg)',
-	                    data: dataToUse.map(e => e.gewicht ? parseFloat(e.gewicht) : null), // KORRIGIERT: e.gewicht statt e.weight
+	                    data: processedData.map(d => d.gew),
 	                    borderColor: '#db2777',
 	                    borderWidth: 2,
 	                    borderDash: [5, 5],
@@ -1567,7 +1602,7 @@
 	                },
 	                {
 	                    label: 'BMI',
-	                    data: dataToUse.map(e => (e.bmi && e.bmi !== 'N/A') ? parseFloat(e.bmi) : null),
+	                    data: processedData.map(d => d.bmi),
 	                    borderColor: '#4c51bf',
 	                    borderWidth: 2,
 	                    tension: 0.3,
