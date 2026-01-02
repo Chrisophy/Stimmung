@@ -949,12 +949,12 @@
             }
         });
 
-        const avgMood = (moodSum / entries.length).toFixed(2);
+        const avgMood = (moodSum / entries.length).toFixed(1);
         const avgPain = (painSum / entries.length).toFixed(1);
         const avgTemp = tempCount > 0 ? (tempSum / tempCount).toFixed(1) : 'N/A';
-        const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(0) : 'N/A';
+        const avgPuls = pulsCount > 0 ? (pulsSum / pulsCount).toFixed(1) : 'N/A';
         const avgGewicht = gewichtCount > 0 ? (gewichtSum / gewichtCount).toFixed(1) : 'N/A';
-        const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(0) : 'N/A';
+        const avgBlutzucker = blutzuckerCount > 0 ? (blutzuckerSum / blutzuckerCount).toFixed(1) : 'N/A';
         const avgBMI = bmiCount > 0 ? (bmiSum / bmiCount).toFixed(1) : 'N/A';
 
 
@@ -1472,7 +1472,7 @@
 									const realTemp = chartData[context.dataIndex].tempOriginal;
 									return label + ': ' + (realTemp !== null ? realTemp.toFixed(1) + ' °C' : 'N/A');
 								}
-								return label + ': ' + context.parsed.y.toFixed(1);
+								return label + ': ' + context.parsed.y.toFixed(1); 
 							}
 						}
 					},
@@ -1491,7 +1491,6 @@
 	    if (typeof Chart === 'undefined') return;
 	    if (vitalChartInstance) vitalChartInstance.destroy();
 	
-	    // --- NEU: Gruppierung nach Datum für Tagesdurchschnitte ---
 	    const dailyVitals = entries.reduce((acc, entry) => {
 	        const dateKey = entry.date;
 	        if (!acc[dateKey]) { 
@@ -1520,7 +1519,6 @@
 	    }
 	    if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.add('hidden');
 
-	    // Daten für das Diagramm vorbereiten (Durchschnitte berechnen)
 	    const chartLabels = sortedDates.map(d => window.formatDateShort ? window.formatDateShort(d) : d);
 	    const processedData = sortedDates.map(date => {
 	        const d = dailyVitals[date];
@@ -1549,67 +1547,12 @@
 	        data: {
 	            labels: chartLabels,
 	            datasets: [
-	                {
-	                    label: 'Blutdruck (Sys)',
-	                    data: processedData.map(d => d.sys),
-	                    borderColor: '#6b7280',
-	                    borderWidth: 2,
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'yPressure',
-	                    spanGaps: true
-	                },
-	                {
-	                    label: 'Blutdruck (Dia)',
-	                    data: processedData.map(d => d.dia),
-	                    borderColor: '#3b82f6',
-	                    borderWidth: 2,
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'yPressure',
-	                    spanGaps: true
-	                },
-	                {
-	                    label: 'Blutzucker',
-	                    data: processedData.map(d => d.bz),
-	                    borderColor: '#f59e0b',
-	                    borderWidth: 2,
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'ySugar',
-	                    spanGaps: true
-	                },	
-	                {
-	                    label: 'Puls',
-	                    data: processedData.map(d => d.puls),
-	                    borderColor: '#10b981',
-	                    borderWidth: 2,
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'yPulse',
-	                    spanGaps: true
-	                },
-	                {
-	                    label: 'Gewicht (kg)',
-	                    data: processedData.map(d => d.gew),
-	                    borderColor: '#db2777',
-	                    borderWidth: 2,
-	                    borderDash: [5, 5],
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'yPulse',
-	                    spanGaps: true
-	                },
-	                {
-	                    label: 'BMI',
-	                    data: processedData.map(d => d.bmi),
-	                    borderColor: '#4c51bf',
-	                    borderWidth: 2,
-	                    tension: 0.3,
-						pointRadius: 6, 
-	                    yAxisID: 'yPulse',
-	                    spanGaps: true
-	                }
+	                { label: 'Ø Blutdruck (Sys)', data: processedData.map(d => d.sys), borderColor: '#6b7280', borderWidth: 2, tension: 0.3, pointRadius: 6, yAxisID: 'yPressure', spanGaps: true },
+	                { label: 'Ø Blutdruck (Dia)', data: processedData.map(d => d.dia), borderColor: '#3b82f6', borderWidth: 2, tension: 0.3, pointRadius: 6, yAxisID: 'yPressure', spanGaps: true },
+	                { label: 'Ø Blutzucker', data: processedData.map(d => d.bz), borderColor: '#f59e0b', borderWidth: 2, tension: 0.3, pointRadius: 6, yAxisID: 'ySugar', spanGaps: true },	
+	                { label: 'Ø Puls', data: processedData.map(d => d.puls), borderColor: '#10b981', borderWidth: 2, tension: 0.3, pointRadius: 6, yAxisID: 'yPulse', spanGaps: true },
+	                { label: 'Ø Gewicht (kg)', data: processedData.map(d => d.gew), borderColor: '#db2777', borderWidth: 2, borderDash: [5, 5], tension: 0.3, pointRadius: 6, yAxisID: 'yPulse', spanGaps: true },
+	                { label: 'BMI', data: processedData.map(d => d.bmi), borderColor: '#4c51bf', borderWidth: 2, tension: 0.3, pointRadius: 6, yAxisID: 'yPulse', spanGaps: true }
 	            ]
 	        },
 	        options: {
@@ -1617,28 +1560,21 @@
 	            maintainAspectRatio: false,
 	            scales: {
 	                x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
-	                yPressure: {
-	                    type: 'linear',
-	                    position: 'left',
-	                    beginAtZero: false,
-	                    title: { display: true, text: 'Blutdruck', font: { size: 9 } }
+	                yPressure: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'Blutdruck', font: { size: 9 } } },
+	                yPulse: { type: 'linear', position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, title: { display: true, text: 'Puls / kg / BMI', font: { size: 9 } }, ticks: { font: { size: 9 } } },
+	                ySugar: { type: 'linear', position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, title: { display: true, text: 'Zucker', font: { size: 9 } }, ticks: { font: { size: 9 } } }                       
+	            },
+	            plugins: {
+	                tooltip: {
+	                    callbacks: {
+	                        label: function(context) {
+	                            let label = context.dataset.label || '';
+	                            let value = context.parsed.y;
+	                            return label + ': ' + (value !== null ? value.toFixed(1) : 'N/A');
+	                        }
+	                    }
 	                },
-	                yPulse: {
-	                    type: 'linear',
-	                    position: 'right',
-	                    beginAtZero: false,
-	                    grid: { drawOnChartArea: false },
-	                    title: { display: true, text: 'Puls / kg / BMI', font: { size: 9 } },
-	                    ticks: { font: { size: 9 } }
-	                },
-	                ySugar: {
-	                    type: 'linear',
-	                    position: 'right',
-	                    beginAtZero: false,
-	                    grid: { drawOnChartArea: false },
-	                    title: { display: true, text: 'Zucker', font: { size: 9 } },
-	                    ticks: { font: { size: 9 } }
-	                }                       
+	                legend: { labels: { boxWidth: 10, font: { size: 10 } } }
 	            }
 	        }
 	    });
@@ -1647,6 +1583,7 @@
 	        vitalChartContainerEl.scrollLeft = vitalChartContainerEl.scrollWidth;
 	    }, 100);
 	}
+
 
     function renderPainRegionChart(entries) {
         if (typeof Chart === 'undefined') { console.error("Chart.js ist nicht geladen."); return; }
