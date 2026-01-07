@@ -641,7 +641,6 @@
     }
 
     function setupFormListeners() {
-        document.getElementById('generate-medical-report').addEventListener('click', generateMedicalReport);
         geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
         koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
         gewichtEl.addEventListener('input', calculateAndDisplayBMI);
@@ -740,7 +739,7 @@
         deleteUserBtn.addEventListener('click', handleDeleteUser);
 
 
-        checkFormValidity();        
+        checkFormValidity();
     }
     
     function calculateAge(birthdateString) {
@@ -1610,154 +1609,6 @@
 	        vitalChartContainerEl.scrollLeft = vitalChartContainerEl.scrollWidth;
 	    }, 100);
 	}
-
-    function generateMedicalReport() {
-        if (allStoredEntries.length === 0) {
-            alert("Keine Daten für einen Bericht vorhanden.");
-            return;
-        }
-
-        // 1. Bilder der Diagramme extrahieren
-        const moodChartImg = document.getElementById('moodChart').toDataURL('image/png');
-        const vitalChartImg = document.getElementById('vitalChart').toDataURL('image/png');
-        const painChartImg = document.getElementById('painRegionChart').toDataURL('image/png');
-
-        const reportEntries = [...allStoredEntries].sort((a, b) => b.date.localeCompare(a.date));
-
-        const reportWindow = window.open('', '_blank');
-        
-        let tableRows = reportEntries.map(e => {
-            const moodName = window.MOOD_NAMES[e.mood] || e.mood;
-            const pain = e.pain !== null ? `${e.pain}/10` : '-';
-            const vital = `${e.blutdruckSys || '--'}/${e.blutdruckDia || '--'} mmHg, ${e.puls || '--'} bpm, ${e.gewicht || '--'} kg`;
-            const regions = e.schmerzRegionen && e.schmerzRegionen.length > 0 ? e.schmerzRegionen.join(', ') : '-';
-            
-            return `
-                <tr>
-                    <td>${window.formatDateShort(e.date)} (${e.timePeriod})</td>
-                    <td>${moodName}</td>
-                    <td>${pain}</td>
-                    <td>${regions}</td>
-                    <td>${vital}</td>
-                    <td style="font-size: 0.75rem;">${e.note || '-'}</td>
-                </tr>
-            `;
-        }).join('');
-
-        reportWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="de">
-            <head>
-                <meta charset="UTF-8">
-                <title>Medizinischer Report - ${activeUser}</title>
-                <style>
-                    body { font-family: sans-serif; padding: 10px; color: #333; }
-                    h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; }
-                    
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; }
-                    th, td { border: 1px solid #999; padding: 6px; text-align: left; }
-                    th { background-color: #f3f4f6; }
-
-                    .no-print { 
-                        padding: 12px 24px; background: #1e40af; color: white; 
-                        border: none; border-radius: 6px; cursor: pointer; 
-                        font-weight: bold; margin-bottom: 20px; 
-                    }
-
-                    /* Container für eine komplette Seite im Hochformat */
-                    .page-container {
-                        page-break-before: always;
-                        width: 100%;
-                        height: 27cm; 
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        position: relative;
-                    }
-
-                    /* Die Box, die alles um 90 Grad dreht */
-                    .rotated-content {
-                        transform: rotate(90deg);
-                        transform-origin: center;
-                        width: 25cm; /* Dies wird zur Höhe auf dem Papier */
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                    }
-
-                    .rotated-content h2 { 
-                        color: #1e40af; 
-                        margin-bottom: 20px;
-                        font-size: 1.5rem;
-                    }
-
-                    .rotated-chart {
-                        width: 100%;
-                        max-height: 15cm;
-                        object-fit: contain;
-                    }
-
-                    /* Schmerzregionen (bleibt Hochformat, da meist eher quadratisch/hoch) */
-                    .standard-page {
-                        page-break-before: always;
-                        text-align: center;
-                    }
-
-                    @media print {
-                        .no-print { display: none; }
-                        @page { size: portrait; margin: 1cm; }
-                    }
-                </style>
-            </head>
-            <body>
-                <button class="no-print" onclick="window.print()">🖨️ Bericht als PDF speichern / Drucken</button>
-                
-                <section>
-                    <h1>Medizinisches Protokoll: ${activeUser}</h1>
-                    <p>Erstellt am: ${new Date().toLocaleDateString('de-DE')}</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Datum/Zeit</th>
-                                <th>Stimmung</th>
-                                <th>Schmerz</th>
-                                <th>Regionen</th>
-                                <th>Vitalwerte</th>
-                                <th>Notizen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                    </table>
-                </section>
-
-                <div class="page-container">
-                    <div class="rotated-content">
-                        <h2>Verlauf: Stimmung & Schmerz</h2>
-                        <img src="${moodChartImg}" class="rotated-chart">
-                    </div>
-                </div>
-
-                <div class="page-container">
-                    <div class="rotated-content">
-                        <h2>Verlauf: Vitalfunktionen</h2>
-                        <img src="${vitalChartImg}" class="rotated-chart">
-                    </div>
-                </div>
-
-                <div class="standard-page">
-                    <h2 style="color: #1e40af;">Analyse: Schmerzregionen</h2>
-                    <img src="${painChartImg}" style="max-width: 80%; margin-top: 20px;">
-                </div>
-            </body>
-            </html>
-        `);
-        reportWindow.document.close();
-    }
-
-
-
 
 
     function renderPainRegionChart(entries) {
