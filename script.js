@@ -601,30 +601,35 @@
     function showHelpModal() { helpModal.classList.add('modal-show'); }
     function closeHelpModal() { helpModal.classList.remove('modal-show'); }
     
-    function exportChart(chartId) {
-        const chartCanvas = document.getElementById(chartId);
-        if (!chartCanvas) { alert("Das Diagramm existiert nicht."); return; }
-        const chartInstance = Chart.getChart(chartCanvas);
-        if (!chartInstance) { alert("Das Diagramm kann nicht exportiert werden, da es keine Daten enthält."); return; }
-        const imageURL = chartCanvas.toDataURL('image/png');
-        const action = prompt("Möchten Sie das Diagramm speichern (S) oder drucken (D)?", "S");
-        const filenamePrefix = chartId.includes('moodChart') ? 'stimmungs_chart' : (chartId.includes('vitalChart') ? 'vital_chart' : 'schmerzregionen_chart');
+	function exportChart(chartId) {
+    	const chartCanvas = document.getElementById(chartId);
+    	if (!chartCanvas) { 
+        	alert("Das Diagramm existiert nicht."); 
+        	return; 
+    	}
+    
+    	const chartInstance = Chart.getChart(chartCanvas);
+    	if (!chartInstance) { 
+        	alert("Das Diagramm enthält keine Daten."); 
+        	return; 
+    	}
 
-        if (action && action.toUpperCase() === 'S') {
-            const a = document.createElement('a');
-            a.href = imageURL;
-            a.download = `${filenamePrefix}_${activeUser}_${new Date().toISOString().split('T')[0]}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        } else if (action && action.toUpperCase() === 'D') {
-            const printWindow = window.open('');
-            printWindow.document.write('<img src="' + imageURL + '" style="max-width: 100%;">');
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-        }
-    }
+    // Erzeugt das Bild als Base64-String
+    	const imageURL = chartCanvas.toDataURL('image/png');
+    
+    // Wir nutzen denselben "unsichtbaren Link"-Trick wie beim JSON
+    	const downloadLink = document.createElement("a");
+    	downloadLink.href = imageURL;
+    
+    // Der Dateiname wird an Java übergeben
+    	const timestamp = new Date().toISOString().split('T')[0];
+    	downloadLink.download = `Diagramm_${chartId}_${activeUser}_${timestamp}.png`;
+    
+    	document.body.appendChild(downloadLink);
+    	downloadLink.click();
+    	document.body.removeChild(downloadLink);
+	}
+
     
     function toggleScrollButton() {
         const button = document.getElementById('scrollToTopBtn');
@@ -636,6 +641,7 @@
     }
 
     function setupFormListeners() {
+        document.getElementById('generate-medical-report').addEventListener('click', generateMedicalReport);
         geburtsdatumEl.addEventListener('input', calculateAndDisplayBMI);
         koerpergroesseEl.addEventListener('input', calculateAndDisplayBMI);
         gewichtEl.addEventListener('input', calculateAndDisplayBMI);
@@ -734,7 +740,7 @@
         deleteUserBtn.addEventListener('click', handleDeleteUser);
 
 
-        checkFormValidity();
+        checkFormValidity();        
     }
     
     function calculateAge(birthdateString) {
@@ -1143,68 +1149,89 @@
         }
     }
 
-    function resetData() {
-        if (!confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!")) { return; }
-        
-        if (confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?")) {
-            try {
-                localStorage.removeItem(getUserVitalInfoKey()); 
-                userVitalInfo = {};
-            } catch (e) {
-                 console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
-            }
-        }
-
-        resetButton.disabled = true;
-        resetStatusEl.textContent = 'Lösche alle Daten...';
-        resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
-        try {
-            localStorage.removeItem(getLocalStorageKey()); 
-            allStoredEntries = []; 
-            resetStatusEl.textContent = `Erfolgreich alle Einträge für Benutzer "${activeUser}" gelöscht!`;
-            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
-            yearFilterEl.value = 'all';
-            monthFilterEl.value = 'all';
-            renderSortedHistory([], true); 
-            setupApp(); 
-        } catch (error) {
-            console.error("Fehler beim Löschen der Einträge:", error);
-            resetStatusEl.textContent = 'Fehler beim Löschen.';
-            resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-        } finally {
-            resetButton.disabled = false;
-            setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
-        }
-    }
+	function resetData() {
+    // Dieser Aufruf triggert onJsConfirm in deinem Java-Code
+    	const userConfirmed = confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!");
     
-    function exportData() {
-        const allEntries = allStoredEntries;
-        const exportObject = {
-            activeUser: activeUser, 
-            entries: allEntries,
-            userVitalInfo: userVitalInfo,
-            
-            userList: getSavedUsers() 
-        };
+    	if (!userConfirmed) { 
+        	return; 
+    	}
+    
+    // Zweite Abfrage für Vitaldaten (optional, falls du das trennen willst)
+    	const deleteVital = confirm("Sollen auch Ihre dauerhaft gespeicherten Vitaldaten (Geburtsdatum und Größe) gelöscht werden?");
 
-        if (allEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
-            alert("Es sind keine Einträge oder Benutzerdaten zum Exportieren vorhanden!"); 
-            return; 
-        }
+    	if (deleteVital) {
+        	try {
+            	localStorage.removeItem(getUserVitalInfoKey()); 
+            	userVitalInfo = {};
+        	} catch (e) {
+             	console.error("Fehler beim Löschen der Benutzer-Vitaldaten:", e);
+        	}
+    	}
 
-        const dataStr = JSON.stringify(exportObject, null, 2); 
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const now = new Date();
-        const filename = `stimmungs_backup_${activeUser}_${now.toISOString().split('T')[0]}.json`;
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+    	resetButton.disabled = true;
+    	resetStatusEl.textContent = 'Lösche alle Daten...';
+    	resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-yellow-600 h-4';
+    
+    	try {
+        	localStorage.removeItem(getLocalStorageKey()); 
+        	allStoredEntries = []; 
+        	resetStatusEl.textContent = `Erfolgreich alle Einträge für Benutzer "${activeUser}" gelöscht!`;
+        	resetStatusEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+        
+        // UI zurücksetzen
+        	yearFilterEl.value = 'all';
+        	monthFilterEl.value = 'all';
+        
+        // App neu initialisieren
+        	renderSortedHistory([], true); 
+        	setupApp(); 
+    	} catch (error) {
+        	console.error("Fehler beim Löschen der Einträge:", error);
+        	resetStatusEl.textContent = 'Fehler beim Löschen.';
+    	} finally {
+        	resetButton.disabled = false;
+        	setTimeout(() => { resetStatusEl.textContent = ''; }, 3000);
+    	}
+	}
+
+    
+	function exportData() {
+    	try {
+        	const exportObject = {
+            	activeUser: activeUser, 
+            	entries: allStoredEntries,
+            	userVitalInfo: userVitalInfo,
+            	userList: getSavedUsers() 
+        	};
+
+        	if (allStoredEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
+            	alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
+            	return; 
+        	}
+
+        	const dataStr = JSON.stringify(exportObject, null, 2);
+        
+        // Konvertierung zu Base64 (sicherer für Android)
+        	const base64Data = btoa(unescape(encodeURIComponent(dataStr)));
+        	const dataUrl = "data:application/json;base64," + base64Data;
+
+        // TRICK: Einen unsichtbaren Link erstellen und anklicken
+        	const link = document.createElement("a");
+        	link.href = dataUrl;
+        	link.download = `stimmungstagebuch_backup.json`;
+        
+        // Der Link muss kurz Teil des Dokuments sein, damit die WebView ihn erkennt
+        	document.body.appendChild(link);
+        	link.click();
+        	document.body.removeChild(link);
+        
+    	} catch (err) {
+        	alert("Fehler beim Export: " + err.message);
+    	}
+	}
+
+
 
     function importData() {
         const file = jsonFileInput.files[0];
@@ -1583,6 +1610,154 @@
 	        vitalChartContainerEl.scrollLeft = vitalChartContainerEl.scrollWidth;
 	    }, 100);
 	}
+
+    function generateMedicalReport() {
+        if (allStoredEntries.length === 0) {
+            alert("Keine Daten für einen Bericht vorhanden.");
+            return;
+        }
+
+        // 1. Bilder der Diagramme extrahieren
+        const moodChartImg = document.getElementById('moodChart').toDataURL('image/png');
+        const vitalChartImg = document.getElementById('vitalChart').toDataURL('image/png');
+        const painChartImg = document.getElementById('painRegionChart').toDataURL('image/png');
+
+        const reportEntries = [...allStoredEntries].sort((a, b) => b.date.localeCompare(a.date));
+
+        const reportWindow = window.open('', '_blank');
+        
+        let tableRows = reportEntries.map(e => {
+            const moodName = window.MOOD_NAMES[e.mood] || e.mood;
+            const pain = e.pain !== null ? `${e.pain}/10` : '-';
+            const vital = `${e.blutdruckSys || '--'}/${e.blutdruckDia || '--'} mmHg, ${e.puls || '--'} bpm, ${e.gewicht || '--'} kg`;
+            const regions = e.schmerzRegionen && e.schmerzRegionen.length > 0 ? e.schmerzRegionen.join(', ') : '-';
+            
+            return `
+                <tr>
+                    <td>${window.formatDateShort(e.date)} (${e.timePeriod})</td>
+                    <td>${moodName}</td>
+                    <td>${pain}</td>
+                    <td>${regions}</td>
+                    <td>${vital}</td>
+                    <td style="font-size: 0.75rem;">${e.note || '-'}</td>
+                </tr>
+            `;
+        }).join('');
+
+        reportWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="de">
+            <head>
+                <meta charset="UTF-8">
+                <title>Medizinischer Report - ${activeUser}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 10px; color: #333; }
+                    h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; }
+                    th, td { border: 1px solid #999; padding: 6px; text-align: left; }
+                    th { background-color: #f3f4f6; }
+
+                    .no-print { 
+                        padding: 12px 24px; background: #1e40af; color: white; 
+                        border: none; border-radius: 6px; cursor: pointer; 
+                        font-weight: bold; margin-bottom: 20px; 
+                    }
+
+                    /* Container für eine komplette Seite im Hochformat */
+                    .page-container {
+                        page-break-before: always;
+                        width: 100%;
+                        height: 27cm; 
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        position: relative;
+                    }
+
+                    /* Die Box, die alles um 90 Grad dreht */
+                    .rotated-content {
+                        transform: rotate(90deg);
+                        transform-origin: center;
+                        width: 25cm; /* Dies wird zur Höhe auf dem Papier */
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                    }
+
+                    .rotated-content h2 { 
+                        color: #1e40af; 
+                        margin-bottom: 20px;
+                        font-size: 1.5rem;
+                    }
+
+                    .rotated-chart {
+                        width: 100%;
+                        max-height: 15cm;
+                        object-fit: contain;
+                    }
+
+                    /* Schmerzregionen (bleibt Hochformat, da meist eher quadratisch/hoch) */
+                    .standard-page {
+                        page-break-before: always;
+                        text-align: center;
+                    }
+
+                    @media print {
+                        .no-print { display: none; }
+                        @page { size: portrait; margin: 1cm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <button class="no-print" onclick="window.print()">🖨️ Bericht als PDF speichern / Drucken</button>
+                
+                <section>
+                    <h1>Medizinisches Protokoll: ${activeUser}</h1>
+                    <p>Erstellt am: ${new Date().toLocaleDateString('de-DE')}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Datum/Zeit</th>
+                                <th>Stimmung</th>
+                                <th>Schmerz</th>
+                                <th>Regionen</th>
+                                <th>Vitalwerte</th>
+                                <th>Notizen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </section>
+
+                <div class="page-container">
+                    <div class="rotated-content">
+                        <h2>Verlauf: Stimmung & Schmerz</h2>
+                        <img src="${moodChartImg}" class="rotated-chart">
+                    </div>
+                </div>
+
+                <div class="page-container">
+                    <div class="rotated-content">
+                        <h2>Verlauf: Vitalfunktionen</h2>
+                        <img src="${vitalChartImg}" class="rotated-chart">
+                    </div>
+                </div>
+
+                <div class="standard-page">
+                    <h2 style="color: #1e40af;">Analyse: Schmerzregionen</h2>
+                    <img src="${painChartImg}" style="max-width: 80%; margin-top: 20px;">
+                </div>
+            </body>
+            </html>
+        `);
+        reportWindow.document.close();
+    }
+
+
+
 
 
     function renderPainRegionChart(entries) {
