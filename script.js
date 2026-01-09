@@ -1740,16 +1740,17 @@ function generatePDFForDoctor() {
         const displayData = [...filteredEntries].sort((a, b) => b.date.localeCompare(a.date) || b.timePeriod.localeCompare(a.timePeriod));
 
         displayData.forEach(e => {
-            // 1. Vitalwerte Logik (Puls integriert, kein leeres RR-)
+            // --- KORREKTUR: Vitalwerte Logik inklusive Blutzucker ---
             let vitalParts = [];
             if (e.gewicht) vitalParts.push(`G: ${e.gewicht}kg`);
-            if (e.puls) vitalParts.push(`Puls: ${e.puls} bpm`);
+            if (e.puls) vitalParts.push(`P: ${e.puls} bpm`);
+            if (e.blutzucker) vitalParts.push(`BZ: ${e.blutzucker} mg/dL`); // <-- NEU
             if (e.blutdruckSys && e.blutdruckDia) {
                 vitalParts.push(`RR: ${e.blutdruckSys}/${e.blutdruckDia}`);
             }
             const vitalDisplay = vitalParts.length > 0 ? vitalParts.join('<br>') : "-";
 
-            // 2. Schmerzregion Logik (Mapping von Array zu Text)
+            // Schmerzregion Logik
             let regionDisplay = "-";
             if (e.schmerzRegionen && Array.isArray(e.schmerzRegionen) && e.schmerzRegionen.length > 0) {
                 regionDisplay = e.schmerzRegionen
@@ -1820,7 +1821,6 @@ function generatePDFForDoctor() {
             </body>
             </html>`;
 
-        // Übergabe an Android (APK) oder Browser (Localhost)
         if (window.AndroidPrint && window.AndroidPrint.createPDF) {
             window.AndroidPrint.createPDF(printHtml);
         } else {
