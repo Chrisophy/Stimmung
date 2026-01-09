@@ -14,7 +14,47 @@
             darkMode: 'class',
         }
     </script>    
-            
+<style>
+    @page { size: A4; margin: 10mm; }
+    body { font-family: sans-serif; padding: 0; margin: 0; color: #333; }
+    h2 { color: #4f46e5; text-align: center; font-size: 16pt; margin-bottom: 5px; }
+    p { text-align: center; font-size: 10pt; margin-bottom: 15px; }
+    
+    /* Diagramm begrenzen */
+    img { 
+        display: block; 
+        margin: 0 auto 20px auto; 
+        max-width: 100%; 
+        height: auto; 
+        max-height: 250px; /* Verhindert, dass das Bild eine ganze Seite einnimmt */
+    }
+
+    /* Tabelle kompakt machen */
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        table-layout: fixed; /* WICHTIG: Erzwingt Spaltenbreiten */
+    }
+    th, td { 
+        border: 1px solid #ddd; 
+        padding: 4px; 
+        font-size: 8pt; 
+        word-wrap: break-word; /* Verhindert endlos lange Zeilen */
+        vertical-align: top;
+    }
+    th { background-color: #f3f4f6; }
+
+    /* Spaltenbreiten definieren (Summe = 100%) */
+    th:nth-child(1) { width: 15%; } /* Datum */
+    th:nth-child(2) { width: 12%; } /* Stimm. */
+    th:nth-child(3) { width: 10%; } /* Schm. */
+    th:nth-child(4) { width: 10%; } /* Schlaf */
+    th:nth-child(5) { width: 25%; } /* Vitalwerte */
+    th:nth-child(6) { width: 28%; } /* Notiz */
+
+    small { color: #666; font-size: 7pt; }
+</style>
+
             	
 </head>
 <body class="dark:bg-gray-900 transition-colors duration-300">
@@ -273,6 +313,11 @@
         <button id="export-data" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-150 shadow-md mt-3">
             💾 Alle Daten exportieren (Backup erstellen)
         </button>
+        
+        <button onclick="generatePDFForDoctor()" class="w-full bg-indigo-800 text-white font-bold py-4 px-4 rounded-lg hover:bg-indigo-900 transition duration-150 shadow-lg mt-6">
+    📋 PDF-Bericht für Arzt erstellen
+        </button>
+
 
         <button id="reset-data" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition duration-150 shadow-md disabled:opacity-50 mt-3">
             ❌ Alle Einträge löschen (Neustart)

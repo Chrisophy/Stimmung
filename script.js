@@ -601,34 +601,28 @@
     function showHelpModal() { helpModal.classList.add('modal-show'); }
     function closeHelpModal() { helpModal.classList.remove('modal-show'); }
     
-	function exportChart(chartId) {
-    	const chartCanvas = document.getElementById(chartId);
-    	if (!chartCanvas) { 
-        	alert("Das Diagramm existiert nicht."); 
-        	return; 
-    	}
-    
-    	const chartInstance = Chart.getChart(chartCanvas);
-    	if (!chartInstance) { 
-        	alert("Das Diagramm enthält keine Daten."); 
-        	return; 
-    	}
+function exportChart(chartId) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
 
-    // Erzeugt das Bild als Base64-String
-    	const imageURL = chartCanvas.toDataURL('image/png');
-    
-    // Wir nutzen denselben "unsichtbaren Link"-Trick wie beim JSON
-    	const downloadLink = document.createElement("a");
-    	downloadLink.href = imageURL;
-    
-    // Der Dateiname wird an Java übergeben
-    	const timestamp = new Date().toISOString().split('T')[0];
-    	downloadLink.download = `Diagramm_${chartId}_${activeUser}_${timestamp}.png`;
-    
-    	document.body.appendChild(downloadLink);
-    	downloadLink.click();
-    	document.body.removeChild(downloadLink);
-	}
+    // Das Bild vom Diagramm als Text-String (Base64) extrahieren
+    const imageData = canvas.toDataURL("image/png");
+    const fileName = "Diagramm_" + chartId + "_" + new Date().getTime() + ".png";
+
+    // Prüfen, ob wir in der App sind (unsere neue Brücke nutzen)
+    if (window.AndroidPrint && window.AndroidPrint.saveImage) {
+        // Wir schicken das Bild an die saveImage-Funktion in Java
+        window.AndroidPrint.saveImage(imageData, fileName);
+    } else {
+        // Fallback für den Browser (PC)
+        const link = document.createElement('a');
+        link.href = imageData;
+        link.download = fileName;
+        link.click();
+    }
+}
+
+
 
     
     function toggleScrollButton() {
@@ -767,76 +761,79 @@
         return value === '' ? null : parseFloat(value);
     }
 
-	function saveEntry() {
- 	   const entryDate = entryDateEl.value; 
- 	   if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
- 	       statusMessageEl.textContent = "Bitte alle notwendigen Felder ausfüllen.";
- 	       statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+function saveEntry() {
+    const entryDate = entryDateEl.value; 
+    if (!entryDate || !selectedPeriod || !selectedMood || selectedPain === null) {
+        statusMessageEl.textContent = "Bitte alle notwendigen Felder ausfüllen.";
+        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
         return;
-	    }
+    }
 
-	    saveButton.disabled = true;
-	    statusMessageEl.textContent = 'Speichere...';
+    saveButton.disabled = true;
+    statusMessageEl.textContent = 'Speichere...';
 
-	    const docId = `${entryDate}_${selectedPeriod}`; 
-	    const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
-	    const painRegions = getSelectedPainRegions(); 
+    const docId = `${entryDate}_${selectedPeriod}`; 
+    const weather = getWeatherDataForPeriod(selectedPeriod, entryDate); 
+    const painRegions = getSelectedPainRegions(); 
     
-  	  const geburtsdatum = geburtsdatumEl.value.trim() || null;
-   	 const koerpergroesse = getNumericValue(koerpergroesseEl);
+    const geburtsdatum = geburtsdatumEl.value.trim() || null;
+    const koerpergroesse = getNumericValue(koerpergroesseEl);
     
-   	 saveUserVitalInfo(geburtsdatum, koerpergroesse); 
+    saveUserVitalInfo(geburtsdatum, koerpergroesse); 
 
-   	 const gewicht = getNumericValue(gewichtEl);
-   	 const bmi = calculateBMI(gewicht, koerpergroesse);
-   	 const alter = calculateAge(geburtsdatum);
+    const gewicht = getNumericValue(gewichtEl);
+    const bmi = calculateBMI(gewicht, koerpergroesse);
+    const alter = calculateAge(geburtsdatum);
 
-   	 const newEntry = {
-   	     id: docId, 
-   	     date: entryDate, 
-   	     timePeriod: selectedPeriod,
-   	     mood: selectedMood,
-   	     pain: selectedPain, 
-   	     schmerzRegionen: painRegions, 
-   	     geburtsdatum: geburtsdatum, 
-   	     koerpergroesse: koerpergroesse, 
-   	     alter: alter, 
-   	     gewicht: gewicht,
-   	     bmi: bmi,
-   	     puls: getNumericValue(pulsEl), 
-   	     blutzucker: getNumericValue(blutzuckerEl),
-   	     blutdruckSys: getNumericValue(blutdruckSysEl),
-   	     blutdruckDia: getNumericValue(blutdruckDiaEl),
-   	     note: noteEl.value.trim(),
-   	     temperature: weather.temperature, 
-   	     weatherCondition: weather.weatherCondition, 
-   	     timestamp: new Date().getTime(),
-   	     sleepQuality: parseInt(sleepInput.value) || 0
-   	 };
+    const newEntry = {
+        id: docId, 
+        date: entryDate, 
+        timePeriod: selectedPeriod,
+        mood: selectedMood,
+        pain: selectedPain, 
+        schmerzRegionen: painRegions, 
+        geburtsdatum: geburtsdatum, 
+        koerpergroesse: koerpergroesse, 
+        alter: alter, 
+        gewicht: gewicht,
+        bmi: bmi,
+        puls: getNumericValue(pulsEl), 
+        blutzucker: getNumericValue(blutzuckerEl),
+        blutdruckSys: getNumericValue(blutdruckSysEl),
+        blutdruckDia: getNumericValue(blutdruckDiaEl),
+        note: noteEl.value.trim(),
+        temperature: weather.temperature, 
+        weatherCondition: weather.weatherCondition, 
+        timestamp: new Date().getTime(),
+        sleepQuality: parseInt(sleepInput.value) || 0
+    };
 
-   	 const existingIndex = allStoredEntries.findIndex(e => e.id === docId);
-   	 if (existingIndex > -1) {
-   	     allStoredEntries[existingIndex] = newEntry; 
-   	 } else {
-   	     allStoredEntries.push(newEntry); 
-   	 }
+    // Daten laden, aktualisieren und speichern
+    let entries = loadEntriesFromLocalStorage();
+    const existingIndex = entries.findIndex(e => e.id === docId);
+    
+    if (existingIndex > -1) {
+        entries[existingIndex] = newEntry; 
+    } else {
+        entries.push(newEntry); 
+    }
 
-   	 try {
-        saveEntriesToLocalStorage(allStoredEntries);
-   	     statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
-   	     statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
+    try {
+        saveEntriesToLocalStorage(entries); // WICHTIG: Hier die aktualisierte Liste übergeben
+        statusMessageEl.textContent = 'Eintrag erfolgreich gespeichert!';
+        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-green-600 h-4';
         
-   	     setTimeout(() => {
-   	         window.location.reload(); 
-   	     }, 1500);
-   	 } catch (error) {
-   	     console.error("Fehler beim Speichern:", error);
-   	     statusMessageEl.textContent = 'Fehler beim Speichern.';
-   	     statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
-   	 } finally {
-   	     saveButton.disabled = false;
-   	 }
-	}
+        setTimeout(() => {
+            window.location.reload(); 
+        }, 1200);
+    } catch (error) {
+        console.error("Fehler beim Speichern:", error);
+        statusMessageEl.textContent = 'Fehler beim Speichern.';
+        statusMessageEl.className = 'mt-3 text-center text-sm font-medium text-red-600 h-4';
+        saveButton.disabled = false;
+    }
+}
+
 
     function loadHistoryAndStartListening() {
         renderSortedHistory(allStoredEntries, true);
@@ -1147,7 +1144,7 @@
             alert("Fehler: Eintrag nicht gefunden.");
         }
     }
-
+    
 	function resetData() {
     // Dieser Aufruf triggert onJsConfirm in deinem Java-Code
     	const userConfirmed = confirm("WARNUNG! Sind Sie sicher, dass Sie ALLE Einträge löschen möchten? Dieser Vorgang kann nicht rückgängig gemacht werden!");
@@ -1195,40 +1192,49 @@
 	}
 
     
-	function exportData() {
-    	try {
-        	const exportObject = {
-            	activeUser: activeUser, 
-            	entries: allStoredEntries,
-            	userVitalInfo: userVitalInfo,
-            	userList: getSavedUsers() 
-        	};
+function exportData() {
+    try {
+        const exportObject = {
+            activeUser: activeUser, 
+            entries: allStoredEntries,
+            userVitalInfo: userVitalInfo,
+            userList: getSavedUsers() 
+        };
 
-        	if (allStoredEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
-            	alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
-            	return; 
-        	}
+        if (allStoredEntries.length === 0 && Object.keys(userVitalInfo).length === 0) { 
+            alert("Es sind keine Einträge zum Exportieren vorhanden!"); 
+            return; 
+        }
 
-        	const dataStr = JSON.stringify(exportObject, null, 2);
-        
-        // Konvertierung zu Base64 (sicherer für Android)
-        	const base64Data = btoa(unescape(encodeURIComponent(dataStr)));
-        	const dataUrl = "data:application/json;base64," + base64Data;
+        const dataStr = JSON.stringify(exportObject, null, 2);
+        const timestamp = new Date().toISOString().split('T')[0];
+        const fileName = `Tagebuch_Backup_${activeUser}_${timestamp}.json`;
 
-        // TRICK: Einen unsichtbaren Link erstellen und anklicken
-        	const link = document.createElement("a");
-        	link.href = dataUrl;
-        	link.download = `stimmungstagebuch_backup.json`;
-        
-        // Der Link muss kurz Teil des Dokuments sein, damit die WebView ihn erkennt
-        	document.body.appendChild(link);
-        	link.click();
-        	document.body.removeChild(link);
-        
-    	} catch (err) {
-        	alert("Fehler beim Export: " + err.message);
-    	}
-	}
+        // PRÜFUNG: Sind wir in der Android App?
+        if (window.AndroidPrint && window.AndroidPrint.saveImage) {
+            // Wir nutzen die saveImage Funktion, um den Text zu speichern
+            // Da saveImage ein Bild erwartet (Base64), wandeln wir das JSON kurz um
+            const base64JSON = btoa(unescape(encodeURIComponent(dataStr)));
+            const pseudoDataUrl = "data:text/json;base64," + base64JSON;
+            
+            window.AndroidPrint.saveImage(pseudoDataUrl, fileName);
+        } else {
+            // Klassischer Browser-Download (für PC/Testen)
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    } catch (err) {
+        alert("Fehler beim Export: " + err.message);
+    }
+}
+
 
 
 
@@ -1536,7 +1542,7 @@
 	        
 	        return acc;
 	    }, {});
-
+	
 	    const sortedDates = Object.keys(dailyVitals).sort();
 	    
 	    if (sortedDates.length === 0) {
@@ -1544,7 +1550,7 @@
 	        return;
 	    }
 	    if (typeof vitalChartStatusEl !== 'undefined') vitalChartStatusEl.classList.add('hidden');
-
+	
 	    const chartLabels = sortedDates.map(d => window.formatDateShort ? window.formatDateShort(d) : d);
 	    const processedData = sortedDates.map(date => {
 	        const d = dailyVitals[date];
@@ -1557,7 +1563,7 @@
 	            bmi: d.bmiCount > 0 ? d.bmiSum / d.bmiCount : null
 	        };
 	    });
-
+	
 	    const PIXELS_PER_POINT = 60; 
 	    const parentWidth = vitalChartContainerEl.parentElement.clientWidth;
 	    const targetWidth = Math.max(parentWidth, sortedDates.length * PIXELS_PER_POINT);
@@ -1618,7 +1624,7 @@
         const dataToUse = entries; 
         const regionCounts = { 'oben': 0, 'mitte': 0, 'unten': 0 };
         let totalCount = 0;
-
+        
         dataToUse.forEach(entry => {
             if (entry.schmerzRegionen && Array.isArray(entry.schmerzRegionen)) {
                 entry.schmerzRegionen.forEach(region => {
@@ -1637,7 +1643,7 @@
         }
         painChartStatusEl.classList.add('hidden');
         exportPainChartButton.disabled = false;
-
+        
         const labels = Object.keys(regionCounts).map(key => PAIN_REGION_NAMES[key]);
         const data = Object.values(regionCounts);
         
@@ -1652,7 +1658,7 @@
             'rgb(192, 132, 252)',
             'rgb(233, 213, 255)'
         ];
-
+        
         const ctx = painRegionChartEl.getContext('2d');
         painRegionChartInstance = new Chart(ctx, {
             type: 'pie',
@@ -1709,3 +1715,125 @@
           });
       });
     }
+    
+function generatePDFForDoctor() {
+    try {
+        if (!allStoredEntries || allStoredEntries.length === 0) {
+            alert("Fehler: Keine Daten gefunden.");
+            return;
+        }
+
+        const filterMonth = monthFilterEl.value;
+        const filterYear = yearFilterEl.value;
+
+        const filteredEntries = allStoredEntries.filter(entry => {
+            const matchYear = (filterYear === 'all' || entry.date.startsWith(filterYear));
+            const matchMonth = (filterMonth === 'all' || entry.date.substring(5, 7) === filterMonth);
+            return matchYear && matchMonth;
+        });
+
+        // Diagramm als Bild exportieren
+        const canvas = document.getElementById('moodChart');
+        const chartImage = canvas ? canvas.toDataURL("image/png") : null;
+
+        let tableRows = "";
+        const displayData = [...filteredEntries].sort((a, b) => b.date.localeCompare(a.date) || b.timePeriod.localeCompare(a.timePeriod));
+
+        displayData.forEach(e => {
+            // 1. Vitalwerte Logik (Puls integriert, kein leeres RR-)
+            let vitalParts = [];
+            if (e.gewicht) vitalParts.push(`G: ${e.gewicht}kg`);
+            if (e.puls) vitalParts.push(`Puls: ${e.puls} bpm`);
+            if (e.blutdruckSys && e.blutdruckDia) {
+                vitalParts.push(`RR: ${e.blutdruckSys}/${e.blutdruckDia}`);
+            }
+            const vitalDisplay = vitalParts.length > 0 ? vitalParts.join('<br>') : "-";
+
+            // 2. Schmerzregion Logik (Mapping von Array zu Text)
+            let regionDisplay = "-";
+            if (e.schmerzRegionen && Array.isArray(e.schmerzRegionen) && e.schmerzRegionen.length > 0) {
+                regionDisplay = e.schmerzRegionen
+                    .map(r => PAIN_REGION_NAMES[r] || r)
+                    .join(', ');
+            }
+
+            tableRows += `
+                <tr>
+                    <td>${window.formatDateShort(e.date)}<br><small>${e.timePeriod}</small></td>
+                    <td>${window.MOOD_NAMES[e.mood] || e.mood || '-'}</td>
+                    <td>
+                        <strong>${e.pain}/10</strong><br>
+                        <span style="font-size: 7.5pt; color: #555;">Region: ${regionDisplay}</span>
+                    </td>
+                    <td>${e.sleepQuality || '-'}★</td>
+                    <td class="vital-cell">${vitalDisplay}</td>
+                    <td class="note-cell">${e.note || ''}</td>
+                </tr>`;
+        });
+
+        const printHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    @page { size: A4; margin: 12mm; }
+                    body { font-family: sans-serif; font-size: 8.5pt; color: #000; line-height: 1.3; }
+                    h2 { text-align: center; margin-bottom: 5px; color: #333; font-size: 16pt; }
+                    .subtitle { text-align: center; margin-bottom: 15px; font-size: 10pt; color: #666; }
+                    
+                    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                    th, td { border: 1px solid #444; padding: 5px; vertical-align: top; word-wrap: break-word; }
+                    th { background-color: #f2f2f2; font-weight: bold; font-size: 9pt; }
+                    
+                    /* Spaltenbreiten */
+                    th:nth-child(1) { width: 15%; }
+                    th:nth-child(2) { width: 12%; }
+                    th:nth-child(3) { width: 16%; }
+                    th:nth-child(4) { width: 10%; }
+                    th:nth-child(5) { width: 18%; }
+                    th:nth-child(6) { width: 29%; }
+                    
+                    .vital-cell { font-size: 7.5pt; line-height: 1.1; }
+                    .note-cell { font-style: italic; font-size: 8pt; }
+                    img { display: block; margin: 0 auto 15px; width: 100%; max-height: 180px; object-fit: contain; }
+                </style>
+            </head>
+            <body>
+                <h2>Medizinisches Protokoll: ${activeUser}</h2>
+                <div class="subtitle">Zeitraum: ${filterMonth}/${filterYear} | Erstellt am ${new Date().toLocaleDateString()}</div>
+                
+                ${chartImage ? `<img src="${chartImage}">` : ''}
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Stimmung</th>
+                            <th>Schmerz & Region</th>
+                            <th>Schlaf</th>
+                            <th>Vitalwerte</th>
+                            <th>Notiz</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            </body>
+            </html>`;
+
+        // Übergabe an Android (APK) oder Browser (Localhost)
+        if (window.AndroidPrint && window.AndroidPrint.createPDF) {
+            window.AndroidPrint.createPDF(printHtml);
+        } else {
+            let iframe = document.getElementById('pdfFrame') || document.createElement('iframe');
+            iframe.id = 'pdfFrame'; iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(printHtml);
+            iframe.contentWindow.document.close();
+            setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 500);
+        }
+
+    } catch (err) {
+        alert("Fehler bei der PDF-Erstellung: " + err.message);
+    }
+}
