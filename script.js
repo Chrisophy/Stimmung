@@ -124,8 +124,11 @@
 
     const userDeleteSelect = document.getElementById('user-delete-select');
     const deleteUserBtn = document.getElementById('delete-user-btn');
+    const localDate = new Date();
+    const offset = localDate.getTimezoneOffset() * 60000; // Offset in Millisekunden
+    const localISOTime = new Date(localDate - offset).toISOString().split('T')[0];
+    entryDateEl.value = localISOTime;
 
-    entryDateEl.value = new Date().toISOString().split('T')[0]; 
     const MOOD_EMOJIS = { 'sehr_gut': '😀', 'gut': '🙂', 'neutral': '😐', 'schlecht': '🙁', 'sehr_schlecht': '😞' };
     window.MOOD_NAMES = { 'sehr_gut': 'Sehr gut', 'gut': 'Gut', 'neutral': 'Neutral', 'schlecht': 'Schlecht', 'sehr_schlecht': 'Sehr schlecht' };
     window.MOOD_VALUES = { 'sehr_schlecht': 1, 'schlecht': 2, 'neutral': 3, 'gut': 4, 'sehr_gut': 5 };
@@ -397,7 +400,10 @@
         selectedMood = null;
         selectedPain = null; 
         
-        entryDateEl.value = new Date().toISOString().split('T')[0]; 
+        const localDate = new Date();
+        const offset = localDate.getTimezoneOffset() * 60000; // Offset in Millisekunden
+        const localISOTime = new Date(localDate - offset).toISOString().split('T')[0];
+        entryDateEl.value = localISOTime;
         
         painRegionsFieldset.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
         pulsEl.value = '';
